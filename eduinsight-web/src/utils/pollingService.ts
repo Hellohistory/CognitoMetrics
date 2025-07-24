@@ -1,10 +1,8 @@
 // src/utils/pollingService.ts
 
 import { getReportDetails } from '@/api/analysisApi';
-// 【修改】IAnalysisReportDetail现在可能来自你的types，而不是直接从api文件
 import type { IAnalysisReportDetail } from '@/types/dataModels';
 
-// --- 主报告轮询服务 (保持不变) ---
 interface ReportPollingOptions {
   reportId: number;
   onSuccess: (report: IAnalysisReportDetail) => void;
@@ -15,7 +13,6 @@ interface ReportPollingOptions {
 }
 
 export function startReportPolling(options: ReportPollingOptions): () => void {
-  // ... 您原有的这部分代码保持不变 ...
   const { reportId, onSuccess, onFailure, onUpdate, interval = 3000, timeout = 120000 } = options;
   let pollingHandle: number | undefined;
   const startTime = Date.now();
@@ -59,8 +56,8 @@ export function startAiAnalysisPolling(options: AiPollingOptions): () => void {
     reportId,
     onSuccess,
     onFailure,
-    interval = 5000,   // AI分析可能更耗时，轮询间隔可以稍长
-    timeout = 180000, // 3分钟超时
+    interval = 5000,
+    timeout = 1000000,
   } = options;
 
   let pollingHandle: number | undefined;

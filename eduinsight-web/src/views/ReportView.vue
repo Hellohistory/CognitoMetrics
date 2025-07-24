@@ -7,9 +7,6 @@
       </div>
 
       <el-tabs v-model="activeMainTab" type="border-card" class="main-tabs">
-        <el-tab-pane label="报告摘要" name="summary">
-          <ReportSummary />
-        </el-tab-pane>
 
         <el-tab-pane label="班级横向对比" name="comparison">
           <ClassComparisonTab />
@@ -48,7 +45,6 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { ElTabs, ElTabPane, ElResult, ElButton, vLoading } from 'element-plus';
 import { useAnalysisReportStore } from '@/stores/analysisReportStore';
 
-import ReportSummary from '@/components/reports/tabs/ReportSummary.vue';
 import ClassComparisonTab from '@/components/reports/tabs/ClassComparisonTab.vue';
 import ClassDiagnosticsTab from '@/components/reports/tabs/ClassDiagnosticsTab.vue';
 import StudentDetailListTab from '@/components/reports/tabs/StudentDetailListTab.vue';
