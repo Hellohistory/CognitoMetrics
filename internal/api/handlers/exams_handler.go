@@ -1,4 +1,4 @@
-// file: internal/api/handlers/exams_handler.go
+// Package handlers file: internal/api/handlers/exams_handler.go
 package handlers
 
 import (

@@ -1,4 +1,4 @@
-// file: internal/api/handlers/reports_handler.go
+// Package handlers file: internal/api/handlers/reports_handler.go
 package handlers
 
 import (
