@@ -1,3 +1,5 @@
+// in: internal/analyzer/types/types.go
+
 package types
 
 // AnalysisInput 是整个分析流程的输入
@@ -5,8 +7,7 @@ type AnalysisInput struct {
 	GroupName string
 	FullMarks map[string]float64
 	Tables    []*ClassInputData
-	// 新增：携带ExamID用于回写
-	ExamID uint
+	ExamID    uint
 }
 
 // ClassInputData 代表一个班级的原始输入数据
@@ -102,41 +103,44 @@ type StudentScores struct {
 
 // StudentMetrics 包含学生的各类高级指标
 type StudentMetrics struct {
-	ImbalanceIndex      float64
-	StrengthSubjects    []SubjectTScore
-	WeaknessSubjects    []SubjectTScore
-	ContributionScore   map[string]float64
-	SpecializationIndex float64
-	History             *HistoricalMetrics
+	ImbalanceIndex      float64            `json:"imbalanceIndex"`
+	StrengthSubjects    []SubjectTScore    `json:"strengthSubjects"`
+	WeaknessSubjects    []SubjectTScore    `json:"weaknessSubjects"`
+	ContributionScore   map[string]float64 `json:"contributionScore"`
+	SpecializationIndex float64            `json:"specializationIndex"`
+	History             *HistoricalMetrics `json:"history,omitempty"`
+	// NEW: 新增缺失的指标
+	PointsToPass      float64 `json:"pointsToPass,omitempty"`
+	PointsToExcellent float64 `json:"pointsToExcellent,omitempty"`
 }
 
 // StudentRanks 包含学生的所有排名信息
 type StudentRanks struct {
-	TotalScore RankInfo
-	Subjects   map[string]RankInfo
+	TotalScore RankInfo            `json:"totalScore"`
+	Subjects   map[string]RankInfo `json:"subjects"`
 }
 
 // RankInfo 存储单项排名
 type RankInfo struct {
-	ClassRank           int
-	GradeRank           int
-	ClassPercentileRank float64
-	GradePercentileRank float64
+	ClassRank           int     `json:"classRank"`
+	GradeRank           int     `json:"gradeRank"`
+	ClassPercentileRank float64 `json:"classPercentileRank"`
+	GradePercentileRank float64 `json:"gradePercentileRank"`
 }
 
 // SubjectTScore 用于强弱科分析
 type SubjectTScore struct {
-	Subject string
-	TScore  float64
+	Subject string  `json:"subject"`
+	TScore  float64 `json:"tScore"`
 }
 
 // HistoricalMetrics 存储历史数据分析结果
 type HistoricalMetrics struct {
-	Trend                         map[string]interface{}
-	Stability                     map[string]interface{}
-	GradePercentileRankSlope      float64
-	TotalTScoreVolatility         float64
-	GradePercentileRankVolatility float64
+	Trend                         map[string]interface{} `json:"trend"`
+	Stability                     map[string]interface{} `json:"stability"`
+	GradePercentileRankSlope      float64                `json:"gradePercentileRankSlope"`
+	TotalTScoreVolatility         float64                `json:"totalTScoreVolatility"`
+	GradePercentileRankVolatility float64                `json:"gradePercentileRankVolatility"`
 }
 
 // HistoricalExam 代表一次过去考试的成绩记录
