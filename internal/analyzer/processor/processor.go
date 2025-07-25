@@ -1,15 +1,18 @@
+// file: internal/analyzer/processor/processor.go
 package processor
 
 import (
 	"CognitoMetrics/internal/analyzer/stats"
 	"CognitoMetrics/internal/analyzer/types"
-	"gonum.org/v1/gonum/stat"
 	"sort"
+
+	"gonum.org/v1/gonum/stat"
 )
 
 func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentReportMap map[string]*types.StudentReport) {
 	gradeCount := float64(len(allStudents))
 
+	// --- 年级总分排名 ---
 	sort.SliceStable(allStudents, func(i, j int) bool { return allStudents[i].TotalScore > allStudents[j].TotalScore })
 	for i, student := range allStudents {
 		rank := i + 1
@@ -31,6 +34,7 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 		}
 	}
 
+	// --- 年级单科排名 ---
 	for _, subject := range subjects {
 		sort.SliceStable(allStudents, func(i, j int) bool { return allStudents[i].Scores[subject] > allStudents[j].Scores[subject] })
 		for i, student := range allStudents {
@@ -45,10 +49,13 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 		}
 	}
 
+	// 按班级对学生进行分组
 	classStudentsMap := make(map[string][]*types.StudentInput)
 	for _, s := range allStudents {
 		classStudentsMap[s.TableName] = append(classStudentsMap[s.TableName], s)
 	}
+
+	// --- 班级总分排名 ---
 	for _, studentsInClass := range classStudentsMap {
 		classCount := float64(len(studentsInClass))
 		// 按总分对班级内学生排序
@@ -69,49 +76,90 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 			studentReportMap[student.StudentName].Ranks.TotalScore = r
 		}
 	}
+
+	// --- 班级内单科排名 ---
+	for _, subject := range subjects {
+		for _, studentsInClass := range classStudentsMap {
+			classCount := float64(len(studentsInClass))
+			// 按当前学科分数对班级内学生排序
+			sort.SliceStable(studentsInClass, func(i, j int) bool {
+				return studentsInClass[i].Scores[subject] > studentsInClass[j].Scores[subject]
+			})
+
+			for i, student := range studentsInClass {
+				rank := i + 1
+				// 处理同分同名次
+				if i > 0 && student.Scores[subject] == studentsInClass[i-1].Scores[subject] {
+					rank = studentReportMap[studentsInClass[i-1].StudentName].Ranks.Subjects[subject].ClassRank
+				}
+				// 更新学生报告中的班级学科排名信息
+				r := studentReportMap[student.StudentName].Ranks.Subjects[subject]
+				r.ClassRank = rank
+				r.ClassPercentileRank = stats.Round((classCount-float64(rank)+1)/classCount*100, 2)
+				studentReportMap[student.StudentName].Ranks.Subjects[subject] = r
+			}
+		}
+	}
 }
 
+// --- 新增函数 START ---
+// ProcessGroupStats 计算年级/群体的整体统计数据
 func ProcessGroupStats(allStudents []*types.StudentInput, subjects []string, fullMarks map[string]float64, totalFullMarks float64) *types.LevelStats {
-	statsBySubject := make(map[string]*types.SubjectStats)
-	// Omitting goroutines here for simplicity and to ensure map safety without mutexes
+	gradeStats := &types.LevelStats{
+		StatsBySubject:    make(map[string]*types.SubjectStats),
+		CorrelationMatrix: make(map[string]map[string]float64),
+	}
+	groupScoresBySubject := make(map[string][]float64)
+
+	// 1. 提取所有学科和总分的原始分数列表
 	for _, subject := range subjects {
 		scores := make([]float64, len(allStudents))
 		for i, s := range allStudents {
 			scores[i] = s.Scores[subject]
 		}
-		subjectStat := stats.CalculateDescriptiveStats(scores, fullMarks[subject])
-		subjectStat.DiscriminationIndex = stats.CalculateDiscriminationIndex(scores, fullMarks[subject])
-		stats.CalculateAdvancedGroupMetrics(scores, subjectStat)
-		subjectStat.RawScores = scores
-		statsBySubject[subject] = subjectStat
+		groupScoresBySubject[subject] = scores
 	}
-
 	totalScores := make([]float64, len(allStudents))
 	for i, s := range allStudents {
 		totalScores[i] = s.TotalScore
 	}
-	totalScoreStats := stats.CalculateDescriptiveStats(totalScores, totalFullMarks)
-	totalScoreStats.DiscriminationIndex = stats.CalculateDiscriminationIndex(totalScores, totalFullMarks)
-	stats.CalculateAdvancedGroupMetrics(totalScores, totalScoreStats)
-	totalScoreStats.RawScores = totalScores
-	statsBySubject["totalScore"] = totalScoreStats
+	groupScoresBySubject["totalScore"] = totalScores
 
-	correlationMatrix := make(map[string]map[string]float64)
+	// 2. 计算各科和总分的描述性统计量
+	allSubjectsAndTotal := append(subjects, "totalScore")
+	for _, subject := range allSubjectsAndTotal {
+		scores := groupScoresBySubject[subject]
+		currentFullMark := fullMarks[subject]
+		if subject == "totalScore" {
+			currentFullMark = totalFullMarks
+		}
+
+		subjectStats := stats.CalculateDescriptiveStats(scores, currentFullMark)
+		subjectStats.DiscriminationIndex = stats.CalculateDiscriminationIndex(scores, currentFullMark)
+		stats.CalculateAdvancedGroupMetrics(scores, subjectStats)
+		subjectStats.RawScores = scores // 缓存原始分数，供后续班级竞争力计算使用
+		gradeStats.StatsBySubject[subject] = subjectStats
+	}
+
+	// 3. 计算学科间的相关性矩阵
 	for _, s1 := range subjects {
-		correlationMatrix[s1] = make(map[string]float64)
+		gradeStats.CorrelationMatrix[s1] = make(map[string]float64)
 		for _, s2 := range subjects {
 			if s1 == s2 {
-				correlationMatrix[s1][s2] = 1.0
-				continue
+				gradeStats.CorrelationMatrix[s1][s2] = 1.0
+			} else {
+				scores1 := groupScoresBySubject[s1]
+				scores2 := groupScoresBySubject[s2]
+				correlation := stats.CalculateCorrelation(scores1, scores2)
+				gradeStats.CorrelationMatrix[s1][s2] = correlation
 			}
-			correlationMatrix[s1][s2] = stats.CalculateCorrelation(statsBySubject[s1].RawScores, statsBySubject[s2].RawScores)
 		}
 	}
-	return &types.LevelStats{
-		StatsBySubject:    statsBySubject,
-		CorrelationMatrix: correlationMatrix,
-	}
+
+	return gradeStats
 }
+
+// --- 新增函数 END ---
 
 func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*types.StudentInput, gradeStats *types.LevelStats, studentReportMap map[string]*types.StudentReport, subjects []string, fullMarks map[string]float64, totalFullMarks float64, historyMap map[string]*types.StudentHistory) *types.ClassReport {
 	classScoresBySubject := make(map[string][]float64)
@@ -124,33 +172,56 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 	}
 
 	classStats := &types.LevelStats{StatsBySubject: make(map[string]*types.SubjectStats)}
-	for _, subject := range subjects {
+	allSubjectsAndTotal := append(subjects, "totalScore")
+
+	// 计算班级总分列表
+	classTotalScores := make([]float64, len(studentsInClass))
+	for i, s := range studentsInClass {
+		classTotalScores[i] = s.TotalScore
+	}
+	classScoresBySubject["totalScore"] = classTotalScores
+
+	// 计算班级各科统计指标
+	for _, subject := range allSubjectsAndTotal {
 		scores := classScoresBySubject[subject]
-		subjectStats := stats.CalculateDescriptiveStats(scores, fullMarks[subject])
+		currentFullMark := fullMarks[subject]
+		if subject == "totalScore" {
+			currentFullMark = totalFullMarks
+		}
+
+		subjectStats := stats.CalculateDescriptiveStats(scores, currentFullMark)
 		stats.CalculateAdvancedGroupMetrics(scores, subjectStats)
-		if gradeStats.StatsBySubject[subject].StdDev > 0 {
+
+		// 计算班级 vs 年级的对比性指标
+		if gradeStats.StatsBySubject[subject] != nil && gradeStats.StatsBySubject[subject].StdDev > 0 {
 			subjectStats.HomogeneityIndex = stats.Round(subjectStats.StdDev/gradeStats.StatsBySubject[subject].StdDev, 3)
 		} else {
 			subjectStats.HomogeneityIndex = 1.0
 		}
-
-		// 计算四分位竞争力 (Quartile Competitiveness)
 		gradeRawScores := gradeStats.StatsBySubject[subject].RawScores
 		if len(gradeRawScores) > 0 {
-			// 在调用 CDF 之前对数据进行排序
-			sort.Float64s(gradeRawScores)
+			// 这里需要对年级分数进行排序，以用于计算CDF
+			// 注意：为了不修改原始的gradeStats，我们复制一份
+			sortedGradeRawScores := make([]float64, len(gradeRawScores))
+			copy(sortedGradeRawScores, gradeRawScores)
+			sort.Float64s(sortedGradeRawScores)
 
 			subjectStats.QuartileCompetitiveness = make(map[string]float64)
 			qc := subjectStats.QuartileCompetitiveness
-			qc["q1"] = stats.Round(stat.CDF(subjectStats.Q1, stat.Empirical, gradeRawScores, nil)*100, 2)
-			qc["median"] = stats.Round(stat.CDF(subjectStats.Median, stat.Empirical, gradeRawScores, nil)*100, 2)
-			qc["q3"] = stats.Round(stat.CDF(subjectStats.Q3, stat.Empirical, gradeRawScores, nil)*100, 2)
+			qc["q1"] = stats.Round(stat.CDF(subjectStats.Q1, stat.Empirical, sortedGradeRawScores, nil)*100, 2)
+			qc["median"] = stats.Round(stat.CDF(subjectStats.Median, stat.Empirical, sortedGradeRawScores, nil)*100, 2)
+			qc["q3"] = stats.Round(stat.CDF(subjectStats.Q3, stat.Empirical, sortedGradeRawScores, nil)*100, 2)
 		}
 
 		classStats.StatsBySubject[subject] = subjectStats
 	}
 
 	var studentReportsForClass []*types.StudentReport
+	const PASS_THRESHOLD = 0.60
+	const EXCELLENT_THRESHOLD = 0.85
+	passScoreLine := totalFullMarks * PASS_THRESHOLD
+	excellentScoreLine := totalFullMarks * EXCELLENT_THRESHOLD
+
 	for _, student := range studentsInClass {
 		report := studentReportMap[student.StudentName]
 		var studentTScoreValues []float64
@@ -168,9 +239,20 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 			report.Scores.TScores[subj] = stats.Round(tScore, 2)
 			studentTScoreValues = append(studentTScoreValues, tScore)
 		}
-		totalTScore := 50.0 + 10*((report.TotalScore-gradeStats.StatsBySubject["totalScore"].Mean)/gradeStats.StatsBySubject["totalScore"].StdDev)
-		report.Scores.TScores["totalScore"] = stats.Round(totalTScore, 2)
-		report.Metrics.ImbalanceIndex = stats.Round(stat.StdDev(studentTScoreValues, nil), 2)
+
+		// 计算总分T-Score
+		if gradeStats.StatsBySubject["totalScore"] != nil && gradeStats.StatsBySubject["totalScore"].StdDev != 0 {
+			totalTScore := 50.0 + 10*((report.TotalScore-gradeStats.StatsBySubject["totalScore"].Mean)/gradeStats.StatsBySubject["totalScore"].StdDev)
+			report.Scores.TScores["totalScore"] = stats.Round(totalTScore, 2)
+		} else {
+			report.Scores.TScores["totalScore"] = 50.0
+		}
+
+		totalTScore := report.Scores.TScores["totalScore"]
+
+		if len(studentTScoreValues) > 1 {
+			report.Metrics.ImbalanceIndex = stats.Round(stat.StdDev(studentTScoreValues, nil), 2)
+		}
 
 		type subjectTScorePair struct {
 			name   string
@@ -182,11 +264,11 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 		}
 		sort.Slice(tScorePairs, func(i, j int) bool { return tScorePairs[i].tScore > tScorePairs[j].tScore })
 		if len(tScorePairs) > 0 {
-			report.Metrics.StrengthSubjects = []types.SubjectTScore{{Subject: tScorePairs[0].name, TScore: tScorePairs[0].tScore}}
-			report.Metrics.WeaknessSubjects = []types.SubjectTScore{{Subject: tScorePairs[len(tScorePairs)-1].name, TScore: tScorePairs[len(tScorePairs)-1].tScore}}
+			report.Metrics.StrengthSubjects = []types.SubjectTScore{{Subject: tScorePairs[0].name, TScore: stats.Round(tScorePairs[0].tScore, 2)}}
+			report.Metrics.WeaknessSubjects = []types.SubjectTScore{{Subject: tScorePairs[len(tScorePairs)-1].name, TScore: stats.Round(tScorePairs[len(tScorePairs)-1].tScore, 2)}}
 		}
 
-		profile := "潜力提升型" // Default profile
+		profile := "潜力提升型"
 		if totalTScore >= 62 {
 			profile = "拔尖均衡型"
 			if report.Metrics.ImbalanceIndex >= 12 {
@@ -204,6 +286,13 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 		}
 		report.Profile = profile
 
+		if report.TotalScore < passScoreLine {
+			report.Metrics.PointsToPass = stats.Round(passScoreLine-report.TotalScore, 2)
+		}
+		if report.TotalScore < excellentScoreLine {
+			report.Metrics.PointsToExcellent = stats.Round(excellentScoreLine-report.TotalScore, 2)
+		}
+
 		stats.CalculateAdvancedStudentMetrics(report, classScoresBySubject)
 
 		if historyMap != nil {
@@ -219,12 +308,17 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 					historicalRanks[i] = exam.GradePercentileRank
 					historicalTScores[i] = exam.TotalTScore
 				}
-				historicalRanks = append(historicalRanks, report.Ranks.TotalScore.GradePercentileRank)
+				currentPercentileRank, _ := report.Ranks.TotalScore.GradePercentileRank, 0.0
+				historicalRanks = append(historicalRanks, currentPercentileRank)
 				historicalTScores = append(historicalTScores, report.Scores.TScores["totalScore"])
 
-				report.Metrics.History.GradePercentileRankVolatility = stats.Round(stat.StdDev(historicalRanks, nil), 2)
-				report.Metrics.History.TotalTScoreVolatility = stats.Round(stat.StdDev(historicalTScores, nil), 2)
-				report.Metrics.History.GradePercentileRankSlope = stats.AnalyzeTrendSlope(historicalRanks)
+				if len(historicalRanks) > 1 {
+					report.Metrics.History.GradePercentileRankVolatility = stats.Round(stat.StdDev(historicalRanks, nil), 2)
+					report.Metrics.History.GradePercentileRankSlope = stats.AnalyzeTrendSlope(historicalRanks)
+				}
+				if len(historicalTScores) > 1 {
+					report.Metrics.History.TotalTScoreVolatility = stats.Round(stat.StdDev(historicalTScores, nil), 2)
+				}
 			}
 		}
 
