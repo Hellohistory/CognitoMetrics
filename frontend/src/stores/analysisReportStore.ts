@@ -4,6 +4,31 @@ import { ref, computed } from 'vue';
 import { getReportDetails, getChartDataForReport } from '@/api/analysisApi';
 import type { IAnalysisReportDetail, IFullReport } from '@/types/dataModels';
 
+const normalizeLevelStats = (levelStats: any): Record<string, any> => {
+  if (!levelStats) return {};
+  const stats = levelStats.statsBySubject
+    ? { ...levelStats.statsBySubject }
+    : { ...levelStats };
+  if (levelStats.correlationMatrix) {
+    stats.correlationMatrix = levelStats.correlationMatrix;
+  }
+  return stats;
+};
+
+const normalizeFullReport = (report: any): IFullReport => ({
+  ...report,
+  groupStats: normalizeLevelStats(report.groupStats),
+  tables: (report.tables || []).map((table: any) => ({
+    ...table,
+    tableStats: normalizeLevelStats(table.tableStats),
+    students: (table.students || []).map((student: any) => ({
+      ...student,
+      id: student.id ?? student.studentId,
+      studentId: student.studentId ?? student.id,
+    })),
+  })),
+});
+
 export const useAnalysisReportStore = defineStore('analysisReport', () => {
   // --- State ---
   const isLoading = ref<boolean>(true);
@@ -40,7 +65,10 @@ export const useAnalysisReportStore = defineStore('analysisReport', () => {
       ]);
 
       if (details.status === 'completed' && details.full_report_data) {
-        reportDetail.value = details;
+        reportDetail.value = {
+          ...details,
+          full_report_data: normalizeFullReport(details.full_report_data),
+        };
         chartData.value = charts;
       } else {
         error.value = details.error_message || `报告状态异常: ${details.status}`;

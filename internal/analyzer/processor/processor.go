@@ -9,7 +9,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
-func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentReportMap map[string]*types.StudentReport) {
+func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentReportMap map[uint]*types.StudentReport) {
 	gradeCount := float64(len(allStudents))
 
 	// --- 年级总分排名 ---
@@ -17,9 +17,9 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 	for i, student := range allStudents {
 		rank := i + 1
 		if i > 0 && student.TotalScore == allStudents[i-1].TotalScore {
-			rank = studentReportMap[allStudents[i-1].StudentName].GradeRank
+			rank = studentReportMap[allStudents[i-1].ID].GradeRank
 		}
-		studentReportMap[student.StudentName] = &types.StudentReport{
+		studentReportMap[student.ID] = &types.StudentReport{
 			ID:          student.ID,
 			StudentName: student.StudentName,
 			TableName:   student.TableName,
@@ -40,12 +40,12 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 		for i, student := range allStudents {
 			rank := i + 1
 			if i > 0 && student.Scores[subject] == allStudents[i-1].Scores[subject] {
-				rank = studentReportMap[allStudents[i-1].StudentName].Ranks.Subjects[subject].GradeRank
+				rank = studentReportMap[allStudents[i-1].ID].Ranks.Subjects[subject].GradeRank
 			}
-			r := studentReportMap[student.StudentName].Ranks.Subjects[subject]
+			r := studentReportMap[student.ID].Ranks.Subjects[subject]
 			r.GradeRank = rank
 			r.GradePercentileRank = stats.Round((gradeCount-float64(rank)+1)/gradeCount*100, 2)
-			studentReportMap[student.StudentName].Ranks.Subjects[subject] = r
+			studentReportMap[student.ID].Ranks.Subjects[subject] = r
 		}
 	}
 
@@ -65,15 +65,15 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 			rank := i + 1
 			// 处理同分同名次
 			if i > 0 && student.TotalScore == studentsInClass[i-1].TotalScore {
-				rank = studentReportMap[studentsInClass[i-1].StudentName].ClassRank
+				rank = studentReportMap[studentsInClass[i-1].ID].ClassRank
 			}
 
 			// 更新学生报告中的班级排名信息
-			studentReportMap[student.StudentName].ClassRank = rank
-			r := studentReportMap[student.StudentName].Ranks.TotalScore
+			studentReportMap[student.ID].ClassRank = rank
+			r := studentReportMap[student.ID].Ranks.TotalScore
 			r.ClassRank = rank
 			r.ClassPercentileRank = stats.Round((classCount-float64(rank)+1)/classCount*100, 2)
-			studentReportMap[student.StudentName].Ranks.TotalScore = r
+			studentReportMap[student.ID].Ranks.TotalScore = r
 		}
 	}
 
@@ -90,13 +90,13 @@ func ProcessRanks(allStudents []*types.StudentInput, subjects []string, studentR
 				rank := i + 1
 				// 处理同分同名次
 				if i > 0 && student.Scores[subject] == studentsInClass[i-1].Scores[subject] {
-					rank = studentReportMap[studentsInClass[i-1].StudentName].Ranks.Subjects[subject].ClassRank
+					rank = studentReportMap[studentsInClass[i-1].ID].Ranks.Subjects[subject].ClassRank
 				}
 				// 更新学生报告中的班级学科排名信息
-				r := studentReportMap[student.StudentName].Ranks.Subjects[subject]
+				r := studentReportMap[student.ID].Ranks.Subjects[subject]
 				r.ClassRank = rank
 				r.ClassPercentileRank = stats.Round((classCount-float64(rank)+1)/classCount*100, 2)
-				studentReportMap[student.StudentName].Ranks.Subjects[subject] = r
+				studentReportMap[student.ID].Ranks.Subjects[subject] = r
 			}
 		}
 	}
@@ -161,7 +161,7 @@ func ProcessGroupStats(allStudents []*types.StudentInput, subjects []string, ful
 
 // --- 新增函数 END ---
 
-func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*types.StudentInput, gradeStats *types.LevelStats, studentReportMap map[string]*types.StudentReport, subjects []string, fullMarks map[string]float64, totalFullMarks float64, historyMap map[string]*types.StudentHistory) *types.ClassReport {
+func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*types.StudentInput, gradeStats *types.LevelStats, studentReportMap map[uint]*types.StudentReport, subjects []string, fullMarks map[string]float64, totalFullMarks float64, historyMap map[uint]*types.StudentHistory) *types.ClassReport {
 	classScoresBySubject := make(map[string][]float64)
 	for _, subject := range subjects {
 		scores := make([]float64, len(studentsInClass))
@@ -223,7 +223,7 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 	excellentScoreLine := totalFullMarks * EXCELLENT_THRESHOLD
 
 	for _, student := range studentsInClass {
-		report := studentReportMap[student.StudentName]
+		report := studentReportMap[student.ID]
 		var studentTScoreValues []float64
 		for _, subj := range subjects {
 			gradeMean := gradeStats.StatsBySubject[subj].Mean
@@ -237,7 +237,13 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 			}
 			report.Scores.ZScores[subj] = stats.Round(zScore, 3)
 			report.Scores.TScores[subj] = stats.Round(tScore, 2)
+			if fullMarks[subj] > 0 {
+				report.Scores.ScoreRates[subj] = stats.Round(report.Scores.RawScores[subj]/fullMarks[subj], 3)
+			}
 			studentTScoreValues = append(studentTScoreValues, tScore)
+		}
+		if totalFullMarks > 0 {
+			report.Scores.ScoreRates["totalScore"] = stats.Round(report.TotalScore/totalFullMarks, 3)
 		}
 
 		// 计算总分T-Score
@@ -296,7 +302,7 @@ func ProcessSingleClass(classInput *types.ClassInputData, studentsInClass []*typ
 		stats.CalculateAdvancedStudentMetrics(report, classScoresBySubject)
 
 		if historyMap != nil {
-			if studentHistory, ok := historyMap[student.StudentName]; ok && len(studentHistory.AllExams) >= 2 {
+			if studentHistory, ok := historyMap[student.ID]; ok && len(studentHistory.AllExams) >= 2 {
 				report.Metrics.History = &types.HistoricalMetrics{Trend: make(map[string]interface{}), Stability: make(map[string]interface{})}
 				if studentHistory.LastExam != nil {
 					report.Metrics.History.Trend["totalScore"] = stats.Round(report.TotalScore-studentHistory.LastExam.TotalScore, 2)

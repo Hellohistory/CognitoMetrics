@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-func PerformAnalysis(input *types.AnalysisInput, historyMap map[string]*types.StudentHistory, repo *repository.Repository) (*types.AnalysisReport, error) {
+func PerformAnalysis(input *types.AnalysisInput, historyMap map[uint]*types.StudentHistory, repo *repository.Repository) (*types.AnalysisReport, error) {
 	if input == nil || len(input.Tables) == 0 {
 		return nil, fmt.Errorf("input data is nil or empty")
 	}
@@ -44,7 +44,7 @@ func PerformAnalysis(input *types.AnalysisInput, historyMap map[string]*types.St
 		return report, nil
 	}
 
-	studentReportMap := make(map[string]*types.StudentReport, len(allStudents))
+	studentReportMap := make(map[uint]*types.StudentReport, len(allStudents))
 	processor.ProcessRanks(allStudents, subjects, studentReportMap)
 
 	gradeStats := processor.ProcessGroupStats(allStudents, subjects, input.FullMarks, totalFullMarks)
@@ -71,8 +71,10 @@ func PerformAnalysis(input *types.AnalysisInput, historyMap map[string]*types.St
 
 	sort.Slice(report.Tables, func(i, j int) bool { return report.Tables[i].TableName < report.Tables[j].TableName })
 
-	// 异步回写结果，不阻塞主流程
-	go repo.UpdateScoresWithMetrics(report, input.ExamID)
+	if input.PersistMetrics {
+		// 异步回写全量考试指标，不阻塞主流程。局部分析不应覆盖成绩表中的全局指标。
+		go repo.UpdateScoresWithMetrics(report, input.ExamID)
+	}
 
 	return report, nil
 }

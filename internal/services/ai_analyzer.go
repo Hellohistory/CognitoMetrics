@@ -82,6 +82,9 @@ func (a *AIAnalyzer) getOrGenerateAIAnalysis(reportID uint) (string, error) {
 	if report.AIAnalysisStatus == "completed" && report.AIAnalysisCache != "" {
 		return report.AIAnalysisCache, nil // 直接返回缓存
 	}
+	if a.LLMService == nil {
+		return "", fmt.Errorf("LLM服务未配置，无法进行AI分析")
+	}
 	if report.FullReportData == "" {
 		return "", fmt.Errorf("报告数据为空，无法分析")
 	}
@@ -142,8 +145,12 @@ func (a *AIAnalyzer) getOrGenerateAIAnalysis(reportID uint) (string, error) {
 	// 为每个班级生成深度诊断
 	if tables != nil {
 		for _, t := range tables {
+			tableData, ok := t.(map[string]interface{})
+			if !ok {
+				errChan <- fmt.Errorf("班级报告数据格式错误")
+				continue
+			}
 			// 必须在循环内创建局部变量，否则goroutine会捕获到错误的t
-			tableData := t.(map[string]interface{})
 			wg.Add(1)
 			go func(currentTable map[string]interface{}) {
 				defer wg.Done()

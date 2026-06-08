@@ -17,7 +17,7 @@ import { ElMessage } from 'element-plus';
  * 创建 Axios 实例
  */
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, // 接口基础路径，从环境变量获取
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Content-Type': 'application/json', // 默认请求内容类型
   },
@@ -45,7 +45,10 @@ apiClient.interceptors.response.use(
     if (error.response) {
       // 服务端返回非 2xx 状态码
       const errorMessage =
-        error.response.data.detail || '操作失败，请检查网络或联系管理员';
+        error.response.data?.detail ||
+        error.response.data?.error ||
+        error.response.data?.message ||
+        '操作失败，请检查网络或联系管理员';
       ElMessage.error(errorMessage);
     } else if (error.request) {
       // 请求已发出，但未收到响应

@@ -32,7 +32,7 @@ func (r *ReportRunner) RunSingleExamAnalysisTask(reportID uint, examID uint, sco
 	}()
 
 	// 1. 加载数据
-	analysisData, historyData, err := r.Repo.LoadAnalysisData(examID)
+	analysisData, historyData, err := r.Repo.LoadAnalysisData(examID, scopeLevel, scopeIDs)
 	if err != nil {
 		log.Printf("后台任务失败：报告ID %d, 加载数据错误: %v", reportID, err)
 		r.Repo.UpdateReportStatus(reportID, "failed", fmt.Sprintf("加载数据失败: %v", err))

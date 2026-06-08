@@ -43,6 +43,10 @@ func (h *ReportHandler) SubmitAnalysis(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "考试未找到"})
 		return
 	}
+	if exam.Status != "completed" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "考试尚未定稿，无法发起分析"})
+		return
+	}
 
 	sourceDesc := fmt.Sprintf("Scope: %s, IDs: %v", req.Scope.Level, req.Scope.IDs)
 	newReport, err := h.Repo.CreateAnalysisReport(req.ReportName, req.ExamID, sourceDesc, "single")
@@ -241,22 +245,7 @@ func (h *ReportHandler) CompareReports(c *gin.Context) {
 		return
 	}
 
-	reportName := req.ReportName
-	if reportName == "" {
-		reportName = fmt.Sprintf("对 %d 场考试的对比分析", len(req.ReportIDs))
-	}
-
-	sourceDesc := fmt.Sprintf("Comparing reports: %v", req.ReportIDs)
-	newReport, err := h.Repo.CreateAnalysisReport(reportName, 0, sourceDesc, "comparison")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建对比报告失败"})
-		return
-	}
-
-	c.JSON(http.StatusAccepted, schemas.ReportSubmissionResponse{
-		Message:  "对比分析任务已创建。",
-		ReportID: newReport.ID,
-	})
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "对比分析任务尚未实现"})
 }
 
 // GetReportGroupStats 获取报告的整体统计数据

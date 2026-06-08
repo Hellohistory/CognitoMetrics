@@ -43,7 +43,7 @@ func (h *ClassHandler) CreateClass(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建班级失败"})
 		return
 	}
-	c.JSON(http.StatusCreated, class)
+	c.JSON(http.StatusCreated, toClassSchema(class))
 }
 
 func (h *ClassHandler) GetClassTree(c *gin.Context) {
@@ -131,7 +131,7 @@ func (h *ClassHandler) GetClassByID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询失败"})
 		return
 	}
-	c.JSON(http.StatusOK, class)
+	c.JSON(http.StatusOK, toClassSchema(class))
 }
 
 func (h *ClassHandler) UpdateClass(c *gin.Context) {
@@ -158,7 +158,7 @@ func (h *ClassHandler) UpdateClass(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
 		return
 	}
-	c.JSON(http.StatusOK, updatedClass)
+	c.JSON(http.StatusOK, toClassSchema(updatedClass))
 }
 
 func (h *ClassHandler) DeleteClass(c *gin.Context) {

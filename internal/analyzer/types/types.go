@@ -4,10 +4,11 @@ package types
 
 // AnalysisInput 是整个分析流程的输入
 type AnalysisInput struct {
-	GroupName string
-	FullMarks map[string]float64
-	Tables    []*ClassInputData
-	ExamID    uint
+	GroupName      string
+	FullMarks      map[string]float64
+	Tables         []*ClassInputData
+	ExamID         uint
+	PersistMetrics bool
 }
 
 // ClassInputData 代表一个班级的原始输入数据

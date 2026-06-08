@@ -14,8 +14,18 @@ import (
 
 // Round 将 float64 四舍五入到指定的精度。
 func Round(val float64, precision int) float64 {
+	if math.IsNaN(val) || math.IsInf(val, 0) {
+		return 0.0
+	}
 	p := math.Pow10(precision)
 	return math.Round(val*p) / p
+}
+
+func SafeFloat(val float64) float64 {
+	if math.IsNaN(val) || math.IsInf(val, 0) {
+		return 0.0
+	}
+	return val
 }
 
 // CalculateCorrelation 计算两组分数的皮尔逊相关系数。
@@ -181,9 +191,9 @@ func CalculateDescriptiveStats(scores []float64, fullMark float64) *types.Subjec
 		return &types.SubjectStats{}
 	}
 	stats := &types.SubjectStats{Count: count}
-	stats.Mean = stat.Mean(scores, nil)
-	stats.StdDev = stat.StdDev(scores, nil)
-	stats.Variance = stat.Variance(scores, nil)
+	stats.Mean = SafeFloat(stat.Mean(scores, nil))
+	stats.StdDev = SafeFloat(stat.StdDev(scores, nil))
+	stats.Variance = SafeFloat(stat.Variance(scores, nil))
 
 	sortedScores := make([]float64, count)
 	copy(sortedScores, scores)

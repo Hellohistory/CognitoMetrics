@@ -150,7 +150,7 @@ export interface IAnalysisReport {
 
   // 【核心修改】新增字段以支持异步AI分析
   ai_analysis_status: 'not_started' | 'processing' | 'completed' | 'failed';
-  ai_analysis_cache: string | null;
+  ai_analysis_cache: string | Record<string, any> | null;
 
   created_at: string;
   updated_at: string | null;
@@ -201,7 +201,8 @@ export interface IDescriptiveStats {
 }
 
 export interface IStudentReportData {
-  studentId: number; // 确保学生ID存在，用于对比分析
+  id: number;
+  studentId?: number;
   studentName: string;
   tableName: string;
   totalScore: number;

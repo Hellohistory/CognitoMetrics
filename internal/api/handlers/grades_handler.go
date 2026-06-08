@@ -33,7 +33,7 @@ func (h *GradeHandler) CreateGrade(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建年级失败"})
 		return
 	}
-	c.JSON(http.StatusCreated, grade)
+	c.JSON(http.StatusCreated, toGradeSchema(grade))
 }
 
 func (h *GradeHandler) ListGrades(c *gin.Context) {
@@ -44,7 +44,7 @@ func (h *GradeHandler) ListGrades(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取年级列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, grades)
+	c.JSON(http.StatusOK, toGradeSchemas(grades))
 }
 
 func (h *GradeHandler) UpdateGrade(c *gin.Context) {
@@ -64,7 +64,7 @@ func (h *GradeHandler) UpdateGrade(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
 		return
 	}
-	c.JSON(http.StatusOK, updatedGrade)
+	c.JSON(http.StatusOK, toGradeSchema(updatedGrade))
 }
 
 func (h *GradeHandler) DeleteGrade(c *gin.Context) {

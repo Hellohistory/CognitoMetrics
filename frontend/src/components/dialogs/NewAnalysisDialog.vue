@@ -140,9 +140,7 @@ const isSubmitting = ref(false);
 const allExams = ref<IExam[]>([]);
 
 const availableExams = computed(() =>
-  allExams.value.filter(e =>
-    ['draft', 'submitted', 'completed'].includes(e.status)
-  )
+  allExams.value.filter(e => e.status === 'completed')
 );
 
 const createInitialFormState = () => ({

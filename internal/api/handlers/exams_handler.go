@@ -32,7 +32,7 @@ func (h *ExamHandler) CreateExam(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建考试失败: " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, exam)
+	c.JSON(http.StatusCreated, toExamSchema(exam))
 }
 
 func (h *ExamHandler) ListExams(c *gin.Context) {
@@ -41,7 +41,7 @@ func (h *ExamHandler) ListExams(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取考试列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, exams)
+	c.JSON(http.StatusOK, toExamSchemas(exams))
 }
 
 func (h *ExamHandler) GetExamDetails(c *gin.Context) {
@@ -64,7 +64,12 @@ func (h *ExamHandler) UnlockExam(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "解锁考试失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "考试已解锁"})
+	exam, err := h.Repo.GetExamByID(uint(examID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "考试未找到"})
+		return
+	}
+	c.JSON(http.StatusOK, toExamSchema(exam))
 }
 
 func (h *ExamHandler) FinalizeExam(c *gin.Context) {
@@ -82,7 +87,8 @@ func (h *ExamHandler) FinalizeExam(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "定稿考试失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "考试已定稿"})
+	exam.Status = "completed"
+	c.JSON(http.StatusOK, toExamSchema(exam))
 }
 
 func (h *ExamHandler) DeleteExam(c *gin.Context) {

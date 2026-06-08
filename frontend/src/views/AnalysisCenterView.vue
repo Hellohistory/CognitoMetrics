@@ -133,7 +133,7 @@ const fetchReports = async () => {
   isLoading.value = true;
   const params: IGetReportsParams = {
     page: currentPage.value,
-    pageSize: pageSize.value,
+    page_size: pageSize.value,
     query: searchQuery.value || undefined,
     status: statusFilter.value || undefined,
   };

@@ -12,8 +12,15 @@ type SubjectInExamCreate struct {
 // ExamWithSubjectsCreate 对应创建一场新考试的请求体
 type ExamWithSubjectsCreate struct {
 	Name     string                `json:"name" binding:"required"`
-	ExamDate time.Time             `json:"exam_date" binding:"required"`
+	ExamDate string                `json:"exam_date" binding:"required"`
 	Subjects []SubjectInExamCreate `json:"subjects" binding:"required,min=1,dive"`
+}
+
+func (e ExamWithSubjectsCreate) ParsedExamDate() (time.Time, error) {
+	if t, err := time.Parse("2006-01-02", e.ExamDate); err == nil {
+		return t, nil
+	}
+	return time.Parse(time.RFC3339, e.ExamDate)
 }
 
 // ExamSchema 对应考试的基本信息

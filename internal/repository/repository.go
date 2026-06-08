@@ -11,6 +11,7 @@ import (
 	"log"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/glebarez/sqlite"
@@ -24,6 +25,7 @@ type Repository struct {
 	DB              *gorm.DB
 	subjectNameToID map[string]uint
 	subjectIDToName map[uint]string
+	subjectMu       sync.RWMutex
 }
 
 // New 创建一个新的 Repository 实例，并进行数据库迁移和缓存预热
@@ -72,6 +74,34 @@ func (r *Repository) seedAndLoadSubjectCache() error {
 		r.subjectNameToID[s.Name] = s.ID
 	}
 	return nil
+}
+
+func (r *Repository) cacheSubject(subject models.Subject) {
+	r.subjectMu.Lock()
+	defer r.subjectMu.Unlock()
+	r.subjectIDToName[subject.ID] = subject.Name
+	r.subjectNameToID[subject.Name] = subject.ID
+}
+
+func (r *Repository) getSubjectIDByName(name string) (uint, bool) {
+	r.subjectMu.RLock()
+	defer r.subjectMu.RUnlock()
+	id, ok := r.subjectNameToID[name]
+	return id, ok
+}
+
+func (r *Repository) getSubjectNameByID(id uint) (string, bool) {
+	r.subjectMu.RLock()
+	defer r.subjectMu.RUnlock()
+	name, ok := r.subjectIDToName[id]
+	return name, ok
+}
+
+func reportTableName(class models.Class) string {
+	if class.Grade.Name == "" {
+		return class.Name
+	}
+	return fmt.Sprintf("%s-%s", class.Grade.Name, class.Name)
 }
 
 // paginate 是一个 GORM Scope，用于分页
@@ -426,9 +456,14 @@ func (r *Repository) GetStudentDetailsByID(id uint) (*schemas.StudentDetailSchem
 
 // UpsertSingleScore 更新或插入单条成绩
 func (r *Repository) UpsertSingleScore(scoreIn schemas.SingleScoreUpdate) error {
-	subjectID, ok := r.subjectNameToID[scoreIn.SubjectName]
+	subjectID, ok := r.getSubjectIDByName(scoreIn.SubjectName)
 	if !ok {
 		return fmt.Errorf("学科 '%s' 未找到", scoreIn.SubjectName)
+	}
+	if scoreIn.Score == nil {
+		return r.DB.Unscoped().
+			Where("student_id = ? AND exam_id = ? AND subject_id = ?", scoreIn.StudentID, scoreIn.ExamID, subjectID).
+			Delete(&models.Score{}).Error
 	}
 	score := models.Score{
 		StudentID: scoreIn.StudentID,
@@ -445,30 +480,51 @@ func (r *Repository) UpsertSingleScore(scoreIn schemas.SingleScoreUpdate) error 
 // BatchUpsertScores 批量更新或插入成绩
 func (r *Repository) BatchUpsertScores(batchIn schemas.ScoresBatchInput) (int, error) {
 	var scoresToUpsert []models.Score
+	var scoresToDelete []models.Score
 	for _, scoreInput := range batchIn.Scores {
 		for subjName, scoreVal := range scoreInput.SubjectScores {
-			if subjectID, ok := r.subjectNameToID[subjName]; ok {
-				if scoreVal != nil {
-					scoresToUpsert = append(scoresToUpsert, models.Score{
-						StudentID: scoreInput.StudentID,
-						ExamID:    batchIn.ExamID,
-						SubjectID: subjectID,
-						Score:     *scoreVal,
-					})
-				}
+			subjectID, ok := r.getSubjectIDByName(subjName)
+			if !ok {
+				return 0, fmt.Errorf("学科 '%s' 未找到", subjName)
 			}
+			if scoreVal == nil {
+				scoresToDelete = append(scoresToDelete, models.Score{
+					StudentID: scoreInput.StudentID,
+					ExamID:    batchIn.ExamID,
+					SubjectID: subjectID,
+				})
+				continue
+			}
+			scoresToUpsert = append(scoresToUpsert, models.Score{
+				StudentID: scoreInput.StudentID,
+				ExamID:    batchIn.ExamID,
+				SubjectID: subjectID,
+				Score:     *scoreVal,
+			})
 		}
 	}
-	if len(scoresToUpsert) == 0 {
+	if len(scoresToUpsert) == 0 && len(scoresToDelete) == 0 {
 		return 0, errors.New("没有有效的成绩数据可以录入")
 	}
 
-	err := r.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "student_id"}, {Name: "exam_id"}, {Name: "subject_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"score"}),
-	}).Create(&scoresToUpsert).Error
+	err := r.DB.Transaction(func(tx *gorm.DB) error {
+		for _, score := range scoresToDelete {
+			if err := tx.Unscoped().
+				Where("student_id = ? AND exam_id = ? AND subject_id = ?", score.StudentID, score.ExamID, score.SubjectID).
+				Delete(&models.Score{}).Error; err != nil {
+				return err
+			}
+		}
+		if len(scoresToUpsert) == 0 {
+			return nil
+		}
+		return tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "student_id"}, {Name: "exam_id"}, {Name: "subject_id"}},
+			DoUpdates: clause.AssignmentColumns([]string{"score"}),
+		}).Create(&scoresToUpsert).Error
+	})
 
-	return len(scoresToUpsert), err
+	return len(scoresToUpsert) + len(scoresToDelete), err
 }
 
 // GetScoresForClassInExam 获取指定班级在某场考试中的所有成绩记录
@@ -592,10 +648,15 @@ func (r *Repository) GetExamByID(id uint) (*models.Exam, error) {
 // CreateExamWithSubjects 创建一场考试并关联学科
 func (r *Repository) CreateExamWithSubjects(examIn schemas.ExamWithSubjectsCreate) (*models.Exam, error) {
 	var dbExam models.Exam
-	err := r.DB.Transaction(func(tx *gorm.DB) error {
+	var subjectsToCache []models.Subject
+	examDate, err := examIn.ParsedExamDate()
+	if err != nil {
+		return nil, fmt.Errorf("考试日期格式无效: %w", err)
+	}
+	err = r.DB.Transaction(func(tx *gorm.DB) error {
 		dbExam = models.Exam{
 			Name:     examIn.Name,
-			ExamDate: examIn.ExamDate,
+			ExamDate: examDate,
 			Status:   "draft",
 		}
 		if err := tx.Create(&dbExam).Error; err != nil {
@@ -606,6 +667,7 @@ func (r *Repository) CreateExamWithSubjects(examIn schemas.ExamWithSubjectsCreat
 			if err := tx.Where(models.Subject{Name: subIn.Name}).FirstOrCreate(&subject).Error; err != nil {
 				return err
 			}
+			subjectsToCache = append(subjectsToCache, subject)
 			examSubject := models.ExamSubject{
 				ExamID:    dbExam.ID,
 				SubjectID: subject.ID,
@@ -619,6 +681,9 @@ func (r *Repository) CreateExamWithSubjects(examIn schemas.ExamWithSubjectsCreat
 	})
 	if err != nil {
 		return nil, err
+	}
+	for _, subject := range subjectsToCache {
+		r.cacheSubject(subject)
 	}
 	return &dbExam, nil
 }
@@ -650,8 +715,12 @@ func (r *Repository) GetExamDetailsByID(id uint) (*schemas.ExamDetailSchema, err
 		Subjects: make([]schemas.ExamSubjectDetailSchema, len(examSubjects)),
 	}
 	for i, es := range examSubjects {
+		subjectName, ok := r.getSubjectNameByID(es.SubjectID)
+		if !ok {
+			return nil, fmt.Errorf("科目ID %d 未找到", es.SubjectID)
+		}
 		details.Subjects[i] = schemas.ExamSubjectDetailSchema{
-			Name:     r.subjectIDToName[es.SubjectID],
+			Name:     subjectName,
 			FullMark: es.FullMark,
 		}
 	}
@@ -691,24 +760,67 @@ func (r *Repository) DeleteExamByID(id uint) error {
 //==============================================================================
 
 // LoadAnalysisData 为单场考试加载分析所需的所有数据
-func (r *Repository) LoadAnalysisData(examID uint) (*types.AnalysisInput, map[string]*types.StudentHistory, error) {
+func (r *Repository) LoadAnalysisData(examID uint, scopeLevel string, scopeIDs []uint) (*types.AnalysisInput, map[uint]*types.StudentHistory, error) {
 	var exam models.Exam
 	if err := r.DB.First(&exam, examID).Error; err != nil {
 		return nil, nil, err
 	}
 	var examSubjects []models.ExamSubject
-	r.DB.Where("exam_id = ?", exam.ID).Find(&examSubjects)
+	if err := r.DB.Where("exam_id = ?", exam.ID).Find(&examSubjects).Error; err != nil {
+		return nil, nil, err
+	}
 	fullMarks := make(map[string]float64, len(examSubjects))
 	for _, es := range examSubjects {
-		fullMarks[r.subjectIDToName[es.SubjectID]] = es.FullMark
+		subjectName, ok := r.getSubjectNameByID(es.SubjectID)
+		if !ok {
+			return nil, nil, fmt.Errorf("科目ID %d 未找到", es.SubjectID)
+		}
+		fullMarks[subjectName] = es.FullMark
 	}
 	var scores []models.Score
-	r.DB.Where("exam_id = ?", examID).Preload("Student.Class").Find(&scores)
+	if err := r.DB.Where("exam_id = ?", examID).Preload("Student.Class.Grade").Find(&scores).Error; err != nil {
+		return nil, nil, err
+	}
+
+	scopeSet := make(map[uint]bool, len(scopeIDs))
+	for _, id := range scopeIDs {
+		scopeSet[id] = true
+	}
+	switch scopeLevel {
+	case "FULL_EXAM":
+	case "GRADE", "CLASS":
+		if len(scopeSet) == 0 {
+			return nil, nil, fmt.Errorf("%s 分析范围缺少目标ID", scopeLevel)
+		}
+	default:
+		return nil, nil, fmt.Errorf("未知分析范围: %s", scopeLevel)
+	}
+	matchesScope := func(score models.Score) bool {
+		if scopeLevel == "FULL_EXAM" {
+			return true
+		}
+		switch scopeLevel {
+		case "CLASS":
+			return scopeSet[score.Student.ClassID]
+		case "GRADE":
+			return scopeSet[score.Student.Class.GradeID]
+		default:
+			return true
+		}
+	}
+
 	studentIDsInScope := make(map[uint]bool)
 	tablesMap := make(map[string]*types.ClassInputData)
 	for _, score := range scores {
+		if !matchesScope(score) {
+			continue
+		}
+		subjectName, ok := r.getSubjectNameByID(score.SubjectID)
+		if !ok {
+			return nil, nil, fmt.Errorf("科目ID %d 未找到", score.SubjectID)
+		}
 		studentIDsInScope[score.StudentID] = true
-		className := score.Student.Class.Name
+		className := reportTableName(score.Student.Class)
 		if _, ok := tablesMap[className]; !ok {
 			tablesMap[className] = &types.ClassInputData{TableName: className}
 		}
@@ -727,12 +839,13 @@ func (r *Repository) LoadAnalysisData(examID uint) (*types.AnalysisInput, map[st
 			}
 			tablesMap[className].Students = append(tablesMap[className].Students, studentInput)
 		}
-		studentInput.Scores[r.subjectIDToName[score.SubjectID]] = score.Score
+		studentInput.Scores[subjectName] = score.Score
 	}
 	analysisInput := &types.AnalysisInput{
-		GroupName: exam.Name,
-		FullMarks: fullMarks,
-		ExamID:    exam.ID,
+		GroupName:      exam.Name,
+		FullMarks:      fullMarks,
+		ExamID:         exam.ID,
+		PersistMetrics: scopeLevel == "FULL_EXAM",
 	}
 	for _, table := range tablesMap {
 		analysisInput.Tables = append(analysisInput.Tables, table)
@@ -745,9 +858,9 @@ func (r *Repository) LoadAnalysisData(examID uint) (*types.AnalysisInput, map[st
 }
 
 // loadHistoricalData 加载历史数据
-func (r *Repository) loadHistoricalData(studentIDs map[uint]bool, currentExamDate time.Time) (map[string]*types.StudentHistory, error) {
+func (r *Repository) loadHistoricalData(studentIDs map[uint]bool, currentExamDate time.Time) (map[uint]*types.StudentHistory, error) {
 	if len(studentIDs) == 0 {
-		return make(map[string]*types.StudentHistory), nil
+		return make(map[uint]*types.StudentHistory), nil
 	}
 	var sids []uint
 	for id := range studentIDs {
@@ -764,38 +877,38 @@ func (r *Repository) loadHistoricalData(studentIDs map[uint]bool, currentExamDat
 		return nil, err
 	}
 
-	tempHistoryMap := make(map[string]map[uint]*types.HistoricalExam)
-	studentIDToName := make(map[uint]string)
+	tempHistoryMap := make(map[uint]map[uint]*types.HistoricalExam)
 
 	for _, score := range historicalScores {
-		studentName := score.Student.Name
-		studentIDToName[score.StudentID] = studentName
 		examID := score.ExamID
 
-		if _, ok := tempHistoryMap[studentName]; !ok {
-			tempHistoryMap[studentName] = make(map[uint]*types.HistoricalExam)
+		if _, ok := tempHistoryMap[score.StudentID]; !ok {
+			tempHistoryMap[score.StudentID] = make(map[uint]*types.HistoricalExam)
 		}
-		if _, ok := tempHistoryMap[studentName][examID]; !ok {
-			tempHistoryMap[studentName][examID] = &types.HistoricalExam{
+		if _, ok := tempHistoryMap[score.StudentID][examID]; !ok {
+			tempHistoryMap[score.StudentID][examID] = &types.HistoricalExam{
 				ExamName: score.Exam.Name,
 				ExamDate: score.Exam.ExamDate.Format("2006-01-02"),
 				Scores:   make(map[string]float64),
 			}
 		}
-		subjectName := r.subjectIDToName[score.SubjectID]
-		tempHistoryMap[studentName][examID].Scores[subjectName] = score.Score
+		subjectName, ok := r.getSubjectNameByID(score.SubjectID)
+		if !ok {
+			return nil, fmt.Errorf("科目ID %d 未找到", score.SubjectID)
+		}
+		tempHistoryMap[score.StudentID][examID].Scores[subjectName] = score.Score
 		if score.TScore > 0 {
 			// 这里简单累加，后续在组合时需要除以科目数来求平均
-			tempHistoryMap[studentName][examID].TotalTScore += score.TScore
+			tempHistoryMap[score.StudentID][examID].TotalTScore += score.TScore
 		}
 		if score.GradePercentileRank > 0 {
 			// 同上
-			tempHistoryMap[studentName][examID].GradePercentileRank += score.GradePercentileRank
+			tempHistoryMap[score.StudentID][examID].GradePercentileRank += score.GradePercentileRank
 		}
 	}
 
-	finalHistoryMap := make(map[string]*types.StudentHistory)
-	for studentName, examsMap := range tempHistoryMap {
+	finalHistoryMap := make(map[uint]*types.StudentHistory)
+	for studentID, examsMap := range tempHistoryMap {
 		studentHistory := &types.StudentHistory{AllExams: []*types.HistoricalExam{}}
 		for _, examData := range examsMap {
 			var totalScore float64
@@ -815,7 +928,7 @@ func (r *Repository) loadHistoricalData(studentIDs map[uint]bool, currentExamDat
 		if len(studentHistory.AllExams) > 0 {
 			studentHistory.LastExam = studentHistory.AllExams[len(studentHistory.AllExams)-1]
 		}
-		finalHistoryMap[studentName] = studentHistory
+		finalHistoryMap[studentID] = studentHistory
 	}
 
 	return finalHistoryMap, nil
@@ -832,7 +945,7 @@ func (r *Repository) UpdateScoresWithMetrics(report *types.AnalysisReport, examI
 	for _, table := range report.Tables {
 		for _, student := range table.Students {
 			for subjectName := range student.Scores.RawScores {
-				subjectID, ok := r.subjectNameToID[subjectName]
+				subjectID, ok := r.getSubjectIDByName(subjectName)
 				if !ok {
 					continue
 				}

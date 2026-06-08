@@ -41,7 +41,7 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, students[0])
+	c.JSON(http.StatusCreated, toStudentSchema(&students[0]))
 }
 
 // CreateStudentsBatch 批量新增学生
@@ -77,7 +77,7 @@ func (h *StudentHandler) CreateStudentsBatch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, newStudents)
+	c.JSON(http.StatusCreated, toStudentSchemas(newStudents))
 }
 
 // ListStudentsByClass 获取班级下的学生列表
@@ -94,7 +94,7 @@ func (h *StudentHandler) ListStudentsByClass(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取学生列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, students)
+	c.JSON(http.StatusOK, toStudentSchemas(students))
 }
 
 // UpdateStudent 更新学生信息（如改名、换班）
@@ -132,7 +132,7 @@ func (h *StudentHandler) UpdateStudent(c *gin.Context) {
 	}
 
 	// 5. 返回更新后的学生信息
-	c.JSON(http.StatusOK, updatedStudent)
+	c.JSON(http.StatusOK, toStudentSchema(updatedStudent))
 }
 
 // ActivateStudent 激活学生
@@ -147,7 +147,7 @@ func (h *StudentHandler) ActivateStudent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
-	c.JSON(http.StatusOK, student)
+	c.JSON(http.StatusOK, toStudentSchema(student))
 }
 
 // DeactivateStudent 停用学生
@@ -162,7 +162,7 @@ func (h *StudentHandler) DeactivateStudent(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "操作失败"})
 		return
 	}
-	c.JSON(http.StatusOK, student)
+	c.JSON(http.StatusOK, toStudentSchema(student))
 }
 
 // BatchUpdateStatus 批量更新学生状态

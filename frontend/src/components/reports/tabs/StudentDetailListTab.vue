@@ -22,7 +22,7 @@
       <el-table-column type="index" label="#" width="55" fixed />
       <el-table-column prop="studentName" label="姓名" sortable width="110" fixed>
         <template #default="{ row }">
-          <router-link :to="`/students/${row.studentId}`" class="student-link" v-if="row.studentId">
+          <router-link :to="`/students/${row.id}`" class="student-link" v-if="row.id">
             {{ row.studentName }}
           </router-link>
           <span v-else>{{ row.studentName }}</span>

@@ -52,9 +52,9 @@ const totalStudents = computed(() => {
   return props.grade.classes.reduce((sum, cls) => sum + cls.student_count, 0);
 });
 
-const selectClass = (classNode: IClassNode) => {
+const selectClass = (classNode: unknown) => {
   // 调用 store 中新的、无歧义的 selectNode 方法，直接传递班级节点对象
-  classStore.selectNode(classNode);
+  classStore.selectNode(classNode as IClassNode);
 };
 </script>
 

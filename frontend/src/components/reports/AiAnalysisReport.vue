@@ -80,17 +80,24 @@ const renderMarkdown = (md: string) => {
   return DOMPurify.sanitize(rawHtml);
 };
 
-const parseAiResult = (cache: string | null): IStructuredAiResult | null => {
+const parseAiResult = (cache: unknown): IStructuredAiResult | null => {
   if (!cache) return null;
+  if (typeof cache === 'object') {
+    const parsed = cache as Partial<IStructuredAiResult>;
+    if (parsed.summary && parsed.comparison && parsed.diagnostics) {
+      return parsed as IStructuredAiResult;
+    }
+    return null;
+  }
   try {
-    const parsed = JSON.parse(cache);
+    const parsed = JSON.parse(String(cache));
     if (parsed.summary && parsed.comparison && parsed.diagnostics) {
       return parsed;
     }
     return null;
   } catch (e) {
     console.error("AI result is not valid JSON, treating as plain text.", e);
-    return { summary: cache, comparison: '无数据', diagnostics: {} };
+    return { summary: String(cache), comparison: '无数据', diagnostics: {} };
   }
 };
 

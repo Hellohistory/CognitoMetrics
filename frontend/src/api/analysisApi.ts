@@ -13,7 +13,7 @@ import type {
 
 export interface IGetReportsParams {
   page?: number;
-  pageSize?: number;
+  page_size?: number;
   query?: string;
   status?: string;
   report_type?: string;

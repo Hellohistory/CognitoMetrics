@@ -47,7 +47,7 @@
           />
           <el-input-number
             v-model="subject.full_mark"
-            :min="0"
+            :min="1"
             :max="300"
             placeholder="满分"
             controls-position="right"
