@@ -11,7 +11,7 @@
 -->
 
 <template>
-  <el-container class="student-management-container">
+  <el-container class="student-management-container app-page">
     <el-aside width="280px" class="class-tree-aside">
       <class-navigation-panel />
     </el-aside>
@@ -45,14 +45,44 @@ const classStore = useClassStore();
 
 <style scoped>
 .student-management-container {
-  height: calc(100vh - 60px);
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: calc(100vh - var(--app-header-height) - 48px);
+  min-height: 620px;
+  gap: 16px;
 }
 
 .class-tree-aside {
-  border-right: 1px solid #e0e0e0;
+  width: auto !important;
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
 }
 
 .content-main {
-  padding: 1rem 2rem;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--app-shadow-soft);
+}
+
+@media (max-width: 980px) {
+  .student-management-container {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .class-tree-aside {
+    min-height: 360px;
+  }
+  .content-main {
+    min-height: 560px;
+  }
 }
 </style>

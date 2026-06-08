@@ -38,6 +38,7 @@ interface RadarData {
 
 // --- 工厂函数 ---
 
+const displayName = (value: string) => value.replace(/totalScore/g, '总分');
 
 /**
  * 创建学科难度-区分度散点图的 Option
@@ -46,7 +47,7 @@ interface RadarData {
 export function createDifficultyDiscriminationScatterOption(data: ScatterData): EChartsOption {
   return {
     title: {
-      text: data.title,
+      text: displayName(data.title),
       left: 'center',
     },
     tooltip: {
@@ -54,7 +55,7 @@ export function createDifficultyDiscriminationScatterOption(data: ScatterData): 
       formatter: (params: any) => {
         // params.data 的结构是 [难度, 区分度, '学科名']
         const [difficulty, discrimination, subjectName] = params.data;
-        return `<strong>${subjectName}</strong><br/>
+        return `<strong>${displayName(String(subjectName))}</strong><br/>
                 ${data.x_axis_name}: ${difficulty.toFixed(3)}<br/>
                 ${data.y_axis_name}: ${discrimination.toFixed(3)}`;
       }
@@ -89,7 +90,7 @@ export function createDifficultyDiscriminationScatterOption(data: ScatterData): 
       label: {
         show: true,
         position: 'right',
-        formatter: (params: any) => params.data[2], // 直接显示学科名
+        formatter: (params: any) => displayName(String(params.data[2])), // 直接显示学科名
         fontSize: 12,
         color: '#333'
       },
@@ -130,7 +131,7 @@ export function createDifficultyDiscriminationScatterOption(data: ScatterData): 
 export function createHistogramOption(data: HistogramData): EChartsOption {
   return {
     title: {
-      text: data.series_name,
+      text: displayName(data.series_name),
       left: 'center',
     },
     tooltip: {
@@ -159,7 +160,7 @@ export function createHistogramOption(data: HistogramData): EChartsOption {
     },
     series: [
       {
-        name: data.series_name,
+        name: displayName(data.series_name),
         type: 'bar',
         data: data.series_data,
         barWidth: '60%',
@@ -181,7 +182,7 @@ export function createHistogramOption(data: HistogramData): EChartsOption {
 export function createClassRadarOption(data: RadarData): EChartsOption {
   return {
     title: {
-      text: data.title,
+      text: displayName(data.title),
       left: 'center',
       top: '5%',
     },
@@ -193,7 +194,7 @@ export function createClassRadarOption(data: RadarData): EChartsOption {
       left: 'center',
     },
     radar: {
-      indicator: data.indicator,
+      indicator: data.indicator.map(item => ({ ...item, name: displayName(item.name) })),
       radius: '60%',
       center: ['50%', '55%'],
       splitArea: {
@@ -206,6 +207,7 @@ export function createClassRadarOption(data: RadarData): EChartsOption {
       type: 'radar',
       data: data.series.map(s => ({
           ...s,
+          name: displayName(s.name),
           symbol: 'circle',
           symbolSize: 6
       })),
@@ -226,7 +228,7 @@ export function createClassRadarOption(data: RadarData): EChartsOption {
 export function createHeatmapOption(data: HeatmapData): EChartsOption {
     return {
         title: {
-            text: data.title,
+            text: displayName(data.title),
             left: 'center'
         },
         tooltip: {
@@ -238,14 +240,14 @@ export function createHeatmapOption(data: HeatmapData): EChartsOption {
         },
         xAxis: {
             type: 'category',
-            data: data.x_axis_labels,
+            data: data.x_axis_labels.map(displayName),
             splitArea: {
                 show: true
             }
         },
         yAxis: {
             type: 'category',
-            data: data.y_axis_labels,
+            data: data.y_axis_labels.map(displayName),
             splitArea: {
                 show: true
             }
@@ -286,7 +288,7 @@ export function createHeatmapOption(data: HeatmapData): EChartsOption {
 export function createBoxplotOption(data: BoxplotData): EChartsOption {
     return {
         title: {
-            text: data.title,
+            text: displayName(data.title),
             left: 'center'
         },
         tooltip: {
@@ -302,7 +304,7 @@ export function createBoxplotOption(data: BoxplotData): EChartsOption {
         },
         xAxis: {
             type: 'category',
-            data: data.categories,
+            data: data.categories.map(displayName),
             boundaryGap: true,
             nameGap: 30,
         },

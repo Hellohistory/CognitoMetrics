@@ -1,24 +1,30 @@
 <template>
-  <div class="score-entry-view">
-    <header class="top-bar">
+  <div class="score-entry-view app-page">
+    <header class="top-bar panel-card">
       <div class="exam-selector">
-        <el-select
-          v-model="examStore.selectedExamId"
-          placeholder="请选择或新建一场考试"
-          size="large"
-          class="exam-select"
-          @change="onExamChange"
-          clearable
-          filterable
-        >
-          <el-option
-            v-for="exam in examStore.examList"
-            :key="exam.id"
-            :label="`${exam.name} (${getStatusText(exam.status)})`"
-            :value="exam.id"
-            :disabled="exam.status !== 'draft'"
-          />
-        </el-select>
+        <div class="selector-group">
+          <span class="field-label">当前考试</span>
+          <el-select
+            v-model="examStore.selectedExamId"
+            placeholder="请选择或新建一场考试"
+            size="large"
+            class="exam-select"
+            @change="onExamChange"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="exam in examStore.examList"
+              :key="exam.id"
+              :label="`${exam.name} (${getStatusText(exam.status)})`"
+              :value="exam.id"
+              :disabled="exam.status !== 'draft'"
+            />
+          </el-select>
+        </div>
+        <el-tag v-if="selectedExam" :type="getStatusType(selectedExam.status)" effect="light">
+          {{ getStatusText(selectedExam.status) }}
+        </el-tag>
         <el-button @click="newExamDialogVisible = true" type="primary" size="large" :icon="Plus">新建考试</el-button>
 
         <el-button
@@ -55,7 +61,10 @@
 
       <el-main class="grid-panel">
         <div class="grid-toolbar">
-          <h2>{{ gridTitle }}</h2>
+          <div>
+            <h2>{{ gridTitle }}</h2>
+            <p>{{ selectedClass ? '点击单元格即可录入或修改成绩' : '选择左侧班级后显示学生成绩单' }}</p>
+          </div>
           <div class="grid-actions">
             <el-button @click="pasteDialogVisible = true" :disabled="!canEditScores || gridOptions.loading" :icon="Scissor">
               粘贴成绩单
@@ -77,7 +86,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch, nextTick} from 'vue';
-import {ElAside, ElButton, ElContainer, ElMain, ElMessage, ElOption, ElSelect, ElMessageBox} from 'element-plus';
+import {ElAside, ElButton, ElContainer, ElMain, ElMessage, ElOption, ElSelect, ElMessageBox, ElTag} from 'element-plus';
 import { Plus, Select as SelectIcon, Scissor, Unlock, Delete } from '@element-plus/icons-vue';
 import type {VxeGridInstance, VxeGridProps, VxeGridEvents} from 'vxe-table';
 
@@ -378,28 +387,48 @@ const getStatusText = (status: string) => {
     };
     return map[status] || '未知';
 }
+
+const getStatusType = (status: string): 'success' | 'primary' | 'warning' | 'danger' | 'info' => {
+    if (status === 'completed') return 'success';
+    if (status === 'draft') return 'warning';
+    if (status === 'failed') return 'danger';
+    if (status === 'processing' || status === 'submitted') return 'primary';
+    return 'info';
+}
 </script>
 
 <style scoped>
 .score-entry-view {
-  height: 100vh;
+  height: calc(100vh - var(--app-header-height) - 48px);
+  min-height: 640px;
   display: flex;
   flex-direction: column;
-  background-color: #f5f7fa;
 }
 .top-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #dcdfe6;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px;
   flex-shrink: 0;
 }
 .exam-selector {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 10px;
+  min-width: 0;
+}
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.field-label {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 700;
 }
 .exam-select {
   width: 350px;
@@ -407,31 +436,52 @@ const getStatusText = (status: string) => {
 .header-actions {
   margin-left: auto;
 }
+.header-actions :deep(.el-button) {
+  margin-left: 0;
+}
 .main-content {
   flex-grow: 1;
+  gap: 16px;
   overflow: hidden;
 }
 .class-panel {
+  width: 280px !important;
   background-color: #ffffff;
   height: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+  box-shadow: var(--app-shadow-soft);
 }
 .grid-panel {
   display: flex;
   flex-direction: column;
-  padding: 16px 24px;
+  padding: 0;
   height: 100%;
+  min-width: 0;
 }
 .grid-toolbar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
   flex-shrink: 0;
 }
 .grid-toolbar h2 {
   margin: 0;
+  color: var(--app-text);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 700;
+}
+.grid-toolbar p {
+  margin: 6px 0 0;
+  color: var(--app-text-muted);
 }
 .grid-actions {
   display: flex;
@@ -440,8 +490,50 @@ const getStatusText = (status: string) => {
 .grid-wrapper {
   flex-grow: 1;
   min-height: 0;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
   background-color: #ffffff;
+  overflow: hidden;
+  box-shadow: var(--app-shadow-soft);
+}
+
+@media (max-width: 980px) {
+  .score-entry-view {
+    height: auto;
+    min-height: 0;
+  }
+  .top-bar,
+  .grid-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .exam-selector,
+  .selector-group,
+  .header-actions {
+    width: 100%;
+  }
+  .exam-select {
+    width: 100%;
+  }
+  .exam-selector :deep(.el-button) {
+    margin-left: 0;
+  }
+  .exam-selector > :deep(.el-button),
+  .header-actions :deep(.el-button) {
+    width: 100%;
+  }
+  .header-actions {
+    margin-left: 0;
+  }
+  .main-content {
+    flex-direction: column;
+  }
+  .class-panel {
+    width: 100% !important;
+    min-height: 320px;
+  }
+  .grid-wrapper {
+    min-height: 520px;
+  }
 }
 </style>

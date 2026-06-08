@@ -1,9 +1,9 @@
 <template>
-    <div class="student-detail-view" v-loading="isLoading">
+    <div class="student-detail-view app-page" v-loading="isLoading">
         <template v-if="student">
-            <el-page-header @back="goBack" class="page-header">
+            <el-page-header @back="goBack" class="student-page-header panel-card">
                 <template #content>
-                    <span class="text-large font-600 mr-3"> 学生个人档案 </span>
+                    <span class="header-title">{{ student.name }} · 学生个人档案</span>
                 </template>
             </el-page-header>
 
@@ -121,15 +121,29 @@ const goBack = () => {
 
 <style scoped>
 .student-detail-view {
-    padding: 1rem 2rem;
+    max-width: 1120px;
+    margin: 0 auto;
 }
-.page-header {
-    margin-bottom: 1.5rem;
+.student-page-header {
+    padding: 16px 18px;
+}
+.header-title {
+    color: var(--app-text);
+    font-weight: 700;
 }
 .profile-descriptions {
-    margin-bottom: 2rem;
+    overflow: hidden;
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-soft);
 }
 .chart-card {
-    border-radius: 8px;
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-soft);
+}
+
+@media (max-width: 760px) {
+    :deep(.el-descriptions__table) {
+        display: block;
+    }
 }
 </style>

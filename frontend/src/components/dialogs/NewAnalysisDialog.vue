@@ -7,6 +7,7 @@
     @open="onDialogOpen"
     @closed="resetForm"
   >
+    <p class="dialog-intro">仅已定稿考试可发起分析。整场考试分析会回写全局指标，局部分析只生成报告。</p>
     <el-form
       ref="formRef"
       :model="form"
@@ -40,9 +41,9 @@
       <el-divider />
 
       <el-radio-group v-model="form.scope_level" class="scope-radio-group">
-        <el-radio value="FULL_EXAM">整场考试</el-radio>
-        <el-radio value="GRADE">按年级</el-radio>
-        <el-radio value="CLASS">按班级</el-radio>
+        <el-radio-button value="FULL_EXAM">整场考试</el-radio-button>
+        <el-radio-button value="GRADE">按年级</el-radio-button>
+        <el-radio-button value="CLASS">按班级</el-radio-button>
       </el-radio-group>
 
       <el-form-item
@@ -107,7 +108,7 @@ import {
   ElOption,
   ElInput,
   ElRadioGroup,
-  ElRadio,
+  ElRadioButton,
   ElTree,
   ElButton,
   ElMessage,
@@ -239,14 +240,28 @@ async function handleSubmit() {
 
 <style scoped>
 .scope-radio-group {
-  margin-bottom: 20px;
+  display: flex;
+  width: 100%;
+  margin-bottom: 18px;
+}
+.scope-radio-group :deep(.el-radio-button) {
+  flex: 1;
+}
+.scope-radio-group :deep(.el-radio-button__inner) {
+  width: 100%;
+}
+.dialog-intro {
+  margin: -4px 0 18px;
+  color: var(--app-text-muted);
+  font-size: 14px;
 }
 .scope-tree {
   width: 100%;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border: 1px solid var(--app-border);
+  border-radius: 7px;
   padding: 8px;
   max-height: 250px;
   overflow-y: auto;
+  background: var(--app-surface-soft);
 }
 </style>

@@ -9,13 +9,13 @@
 
     <div v-if="selectedClassReport" class="diagnostics-content">
       <el-row :gutter="20" class="section-row">
-        <el-col :span="12">
+        <el-col :xs="24" :lg="12">
           <el-card shadow="never" class="content-card">
             <template #header>班级学科画像 (vs. 年级)</template>
             <VueEcharts v-if="radarChartOption" :option="radarChartOption" style="height: 350px;" />
           </el-card>
         </el-col>
-        <el-col :span="12">
+        <el-col :xs="24" :lg="12">
           <el-card shadow="never" class="content-card">
             <template #header>总分分布对比 (班级 vs. 年级)</template>
             <VueEcharts v-if="overlayHistogramOption" :option="overlayHistogramOption" style="height: 350px;" />
@@ -213,32 +213,35 @@ const getDiffClass = (diff: number | null) => {
 .class-diagnostics-tab {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 18px;
 }
 .class-selector-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f5f7fa;
-  border-radius: 6px;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px;
+  background-color: var(--app-surface-soft);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
 }
 .toolbar-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-muted);
   font-weight: 500;
   white-space: nowrap;
 }
 .section-row {
-  margin-bottom: 1.5rem;
+  margin-bottom: 18px;
 }
 .content-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  height: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
 }
 :deep(.el-card__header) {
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
 }
 .metric-cell {
   display: flex;
@@ -253,7 +256,7 @@ const getDiffClass = (diff: number | null) => {
 }
 .grade-value {
   font-size: 0.8em;
-  color: #909399;
+  color: var(--app-text-soft);
 }
 .diff-positive {
   font-size: 0.8em;
@@ -261,6 +264,12 @@ const getDiffClass = (diff: number | null) => {
 }
 .diff-negative {
   font-size: 0.8em;
-  color: #f56c6c;
+  color: var(--app-danger);
+}
+
+@media (max-width: 1200px) {
+  .section-row :deep(.el-col + .el-col) {
+    margin-top: 18px;
+  }
 }
 </style>

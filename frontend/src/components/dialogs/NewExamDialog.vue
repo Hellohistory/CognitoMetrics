@@ -6,6 +6,7 @@
     :close-on-click-modal="false"
     @closed="resetForm"
   >
+    <p class="dialog-intro">创建考试后会进入草稿状态，成绩录入完成后再定稿用于分析。</p>
     <el-form
       ref="formRef"
       :model="examForm"
@@ -31,6 +32,7 @@
       </el-form-item>
 
       <el-divider />
+      <div class="section-title">考试科目</div>
 
       <el-form-item
         v-for="(subject, index) in examForm.subjects"
@@ -161,9 +163,32 @@ async function submitForm() {
 </script>
 
 <style scoped>
+.dialog-intro {
+  margin: -4px 0 18px;
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+.section-title {
+  margin: 0 0 14px 100px;
+  color: var(--app-text);
+  font-weight: 700;
+}
 .subject-item {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .section-title {
+    margin-left: 0;
+  }
+  .subject-item :deep(.el-input),
+  .subject-item :deep(.el-input-number) {
+    width: 100% !important;
+    margin: 0 !important;
+  }
 }
 </style>

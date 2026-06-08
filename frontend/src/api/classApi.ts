@@ -40,7 +40,7 @@ export const createGrade = async (
 ): Promise<IGradeNode> => {
   try {
     const resp = await apiClient.post<IGradeNode>(
-      '/grades/',
+      '/grades',
       gradeData,
     );
     return resp.data;
@@ -58,7 +58,7 @@ export const createClass = async (
 ): Promise<IClassNode> => {
   try {
     const resp = await apiClient.post<IClassNode>(
-      '/classes/',
+      '/classes',
       classData,
     );
     return resp.data;

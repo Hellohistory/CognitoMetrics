@@ -1,10 +1,27 @@
 <template>
-  <div class="analysis-center">
-    <h1>分析报告中心</h1>
-    <div class="toolbar">
+  <div class="analysis-center app-page">
+    <header class="page-header">
+      <div>
+        <p class="page-kicker">Analysis Center</p>
+        <h1 class="page-title">分析报告中心</h1>
+        <p class="page-subtitle">查看报告进度、重试失败任务，并进入已完成报告。</p>
+      </div>
       <el-button type="primary" :icon="Plus" @click="newAnalysisDialogVisible = true">
         发起新分析
       </el-button>
+    </header>
+
+    <section class="stat-strip">
+      <div v-for="card in statusCards" :key="card.label" class="stat-card">
+        <div>
+          <div class="stat-label">{{ card.label }}</div>
+          <div class="stat-value">{{ card.value }}</div>
+        </div>
+        <span class="stat-icon"><el-icon><component :is="card.icon" /></el-icon></span>
+      </div>
+    </section>
+
+    <div class="toolbar-card">
       <div class="toolbar-right">
         <el-input
           v-model="searchQuery"
@@ -29,7 +46,7 @@
       </div>
     </div>
 
-    <el-table :data="allReports" stripe v-loading="isLoading" class="report-table" row-key="id">
+    <el-table :data="allReports" stripe v-loading="isLoading" class="report-table panel-card" row-key="id" empty-text="暂无分析报告">
       <el-table-column prop="report_name" label="报告名称" min-width="250">
         <template #default="{ row }">
             <span>{{ row.report_name }}</span>
@@ -64,6 +81,7 @@
           <el-button
             type="primary"
             link
+            :icon="View"
             :disabled="row.status !== 'completed'"
             @click="viewReport(row.id)"
           >
@@ -74,6 +92,7 @@
             v-if="row.status === 'failed'"
             type="warning"
             link
+            :icon="Refresh"
             @click="handleRetry(row.id)"
           >
             重试
@@ -82,6 +101,7 @@
           <el-button
             type="danger"
             link
+            :icon="DeleteIcon"
             @click="handleDelete(row.id, row.report_name)"
           >
             删除
@@ -95,7 +115,8 @@
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
         :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
+        :layout="paginationLayout"
+        :small="isCompactViewport"
         :total="totalReports"
       />
     </div>
@@ -105,10 +126,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElTable, ElTableColumn, ElButton, ElTag, ElInput, ElSelect, ElOption, ElPagination, ElMessage, ElMessageBox, ElTooltip, vLoading } from 'element-plus';
-import { Refresh, Plus, Search } from '@element-plus/icons-vue';
+import { ElIcon, ElTable, ElTableColumn, ElButton, ElTag, ElInput, ElSelect, ElOption, ElPagination, ElMessage, ElMessageBox, ElTooltip, vLoading } from 'element-plus';
+import { CircleCheckFilled, Clock, Delete as DeleteIcon, Refresh, Plus, Search, View, WarningFilled } from '@element-plus/icons-vue';
 import {
   getReports,
   deleteReport as apiDeleteReport,
@@ -128,6 +149,17 @@ const statusFilter = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 const totalReports = ref(0);
+const isCompactViewport = ref(false);
+let compactQuery: MediaQueryList | null = null;
+
+const statusCards = computed(() => [
+  { label: '已完成', value: allReports.value.filter(item => item.status === 'completed').length, icon: CircleCheckFilled },
+  { label: '处理中', value: allReports.value.filter(item => item.status === 'processing').length, icon: Clock },
+  { label: '失败', value: allReports.value.filter(item => item.status === 'failed').length, icon: WarningFilled },
+]);
+const paginationLayout = computed(() =>
+  isCompactViewport.value ? 'prev, pager, next' : 'total, sizes, prev, pager, next, jumper'
+);
 
 const fetchReports = async () => {
   isLoading.value = true;
@@ -218,7 +250,20 @@ const handleDelete = async (id:number, name: string) => {
   }
 };
 
-onMounted(fetchReports);
+const updateCompactViewport = () => {
+  isCompactViewport.value = Boolean(compactQuery?.matches);
+};
+
+onMounted(() => {
+  compactQuery = window.matchMedia('(max-width: 720px)');
+  updateCompactViewport();
+  compactQuery.addEventListener('change', updateCompactViewport);
+  fetchReports();
+});
+
+onBeforeUnmount(() => {
+  compactQuery?.removeEventListener('change', updateCompactViewport);
+});
 
 const getStatusType = (status: string): 'success' | 'primary' | 'warning' | 'danger' | 'info' => {
   switch (status) {
@@ -253,17 +298,14 @@ const viewReport = (id: number) => {
 
 <style scoped>
 .analysis-center {
-  padding: 24px;
-}
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  max-width: 1240px;
+  margin: 0 auto;
 }
 .toolbar-right {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
+  margin-left: auto;
 }
 .search-input {
   width: 240px;
@@ -273,10 +315,22 @@ const viewReport = (id: number) => {
 }
 .report-table {
   width: 100%;
+  overflow: hidden;
 }
 .pagination-container {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
+  padding: 4px 2px;
+}
+
+@media (max-width: 720px) {
+  .toolbar-right,
+  .search-input,
+  .status-select {
+    width: 100%;
+  }
+  .pagination-container {
+    justify-content: center;
+  }
 }
 </style>

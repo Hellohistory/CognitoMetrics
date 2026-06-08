@@ -131,7 +131,7 @@ async function startAnalysis() {
     });
   } catch (err: any) {
     isLoading.value = false;
-    error.value = err.response?.data?.detail || '提交分析任务失败';
+    error.value = err.response?.data?.detail || err.response?.data?.error || '提交分析任务失败';
   }
 }
 
@@ -152,7 +152,7 @@ onMounted(async () => {
       error.value = '此前的AI分析任务已失败，请重试。';
     }
   } catch (err: any) {
-    error.value = err.response?.data?.detail || '加载报告状态失败';
+    error.value = err.response?.data?.detail || err.response?.data?.error || '加载报告状态失败';
   }
 });
 
@@ -163,19 +163,26 @@ onUnmounted(() => {
 
 <style scoped>
 .ai-analysis-container {
-  padding: 1rem 2rem;
+  width: 100%;
+  padding: 0;
   min-height: 60vh;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  background-color: #fff;
+  background-color: transparent;
 }
 .state-container {
   text-align: center;
-  margin-top: 10vh;
+  width: min(720px, 100%);
+  margin-top: 8vh;
+  padding: 34px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-soft);
 }
-.loading-container p { margin-top: 1.5rem; color: #606266; font-size: 1.1rem; font-weight: 500; }
-.loading-container span { margin-top: 0.5rem; color: #909399; font-size: 0.9rem; }
+.loading-container p { margin-top: 1.5rem; color: var(--app-text); font-size: 1.1rem; font-weight: 700; }
+.loading-container span { margin-top: 0.5rem; color: var(--app-text-muted); font-size: 0.9rem; }
 
 .result-container {
   width: 100%;
@@ -183,7 +190,7 @@ onUnmounted(() => {
 }
 .ai-tabs {
   width: 100%;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--app-border);
   box-shadow: none;
 }
 .class-diagnostic-tabs {
@@ -192,15 +199,15 @@ onUnmounted(() => {
 .markdown-body {
   line-height: 1.8;
   font-size: 16px;
-  color: #303133;
+  color: var(--app-text);
   padding: 0 1rem;
 }
-:deep(.markdown-body h1),:deep(.markdown-body h2),:deep(.markdown-body h3) { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.8em; border-bottom: 1px solid #e4e7ed; padding-bottom: 0.5em; }
+:deep(.markdown-body h1),:deep(.markdown-body h2),:deep(.markdown-body h3) { font-weight: 700; margin-top: 1.5em; margin-bottom: 0.8em; border-bottom: 1px solid var(--app-border); padding-bottom: 0.5em; }
 :deep(.markdown-body h1) { font-size: 1.8em; }
 :deep(.markdown-body h2) { font-size: 1.5em; }
 :deep(.markdown-body h3) { font-size: 1.25em; }
 :deep(.markdown-body ul),:deep(.markdown-body ol) { padding-left: 2em; }
 :deep(.markdown-body li) { margin-bottom: 0.5em; }
-:deep(.markdown-body code) { background-color: rgba(64, 158, 255, 0.1); padding: 0.2em 0.4em; border-radius: 4px; font-size: 90%; color: #409eff; font-family: 'Courier New', Courier, monospace; }
-:deep(.markdown-body blockquote) { border-left: 4px solid #409EFF; padding: 0.5em 1rem; color: #606266; margin-left: 0; background-color: #ecf5ff; }
+:deep(.markdown-body code) { background-color: var(--app-primary-soft); padding: 0.2em 0.4em; border-radius: 4px; font-size: 90%; color: var(--app-primary); font-family: Consolas, 'Courier New', monospace; }
+:deep(.markdown-body blockquote) { border-left: 4px solid var(--app-primary); padding: 0.5em 1rem; color: var(--app-text-muted); margin-left: 0; background-color: var(--app-primary-soft); }
 </style>

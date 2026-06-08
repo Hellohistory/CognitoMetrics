@@ -1,6 +1,10 @@
 <template>
   <div class="student-detail-list-tab">
     <div class="table-toolbar">
+      <div>
+        <strong>学生明细</strong>
+        <span>共 {{ filteredStudents.length }} 条记录</span>
+      </div>
       <el-input
         v-model="searchQuery"
         placeholder="按姓名或班级搜索学生"
@@ -94,13 +98,31 @@ const filteredStudents = computed<IStudentReportData[]>(() => {
 
 <style scoped>
 .student-detail-list-tab {
-  margin-top: 1rem;
+  min-width: 0;
 }
 
 .table-toolbar {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.table-toolbar strong,
+.table-toolbar span {
+  display: block;
+}
+
+.table-toolbar strong {
+  color: var(--app-text);
+  font-size: 18px;
+}
+
+.table-toolbar span {
+  margin-top: 2px;
+  color: var(--app-text-muted);
+  font-size: 13px;
 }
 
 .search-input {
@@ -112,14 +134,14 @@ const filteredStudents = computed<IStudentReportData[]>(() => {
 }
 
 .student-link {
-  color: #409eff;
+  color: var(--app-primary);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 700;
   transition: color 0.2s;
 }
 
 .student-link:hover {
-  color: #79bbff;
+  color: var(--app-primary-strong);
   text-decoration: underline;
 }
 
@@ -131,5 +153,15 @@ const filteredStudents = computed<IStudentReportData[]>(() => {
     padding: 0 10px;
     color: #909399;
     font-size: 14px;
+}
+
+@media (max-width: 680px) {
+  .table-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .search-input {
+    width: 100%;
+  }
 }
 </style>

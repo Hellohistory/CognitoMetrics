@@ -190,8 +190,8 @@ const barChartOption = computed<EChartsOption | null>(() => {
 
 <style scoped>
 .integrated-card {
-  border: 1px solid #e4e7ed;
-  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
 }
 .card-header-toolbar {
   display: flex;
@@ -203,17 +203,12 @@ const barChartOption = computed<EChartsOption | null>(() => {
   display: flex;
   align-items: center;
   gap: 1rem;
-  flex-grow: 1; /* <-- 新增这一行 */
-  /* min-width: 0; */ /* 另一个备选的修复技巧 */
-}
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-grow: 1;
+  min-width: 0;
 }
 .toolbar-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--app-text-muted);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -229,18 +224,20 @@ const barChartOption = computed<EChartsOption | null>(() => {
   height: 520px;
 }
 .content-panel {
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--app-surface);
 }
 .panel-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
   margin: 0;
 }
 .panel-body {
@@ -257,8 +254,15 @@ const barChartOption = computed<EChartsOption | null>(() => {
     height: 500px;
   }
 }
+@media (max-width: 640px) {
+  .card-header-toolbar,
+  .toolbar-left {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 :deep(.el-table th.el-table__cell) {
-  background-color: #fafafa;
-  color: #606266;
+  background-color: #f6f8f4;
+  color: var(--app-text);
 }
 </style>

@@ -27,7 +27,7 @@ import type {
  */
 export const getExams = async (): Promise<IExam[]> => {
   try {
-    const resp = await apiClient.get<IExam[]>('/exams/');
+    const resp = await apiClient.get<IExam[]>('/exams');
     return resp.data;
   } catch (err) {
     console.error('【getExams】获取考试列表失败：', err);
@@ -75,7 +75,7 @@ export const createExam = async (
   examData: IExamWithSubjectsCreate,
 ): Promise<IExam> => {
   try {
-    const resp = await apiClient.post<IExam>('/exams/', examData);
+    const resp = await apiClient.post<IExam>('/exams', examData);
     return resp.data;
   } catch (err) {
     console.error('【createExam】创建考试失败：', err);

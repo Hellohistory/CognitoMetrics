@@ -87,24 +87,25 @@ const getSubjectDisplayName = (subjectKey: string | number): string => {
 
 <style scoped>
 .grade-overview-tab {
-  margin-top: 1rem;
+  min-width: 0;
 }
 
 .subject-tabs {
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.02);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  box-shadow: none;
+  overflow: hidden;
 }
 
 .tab-content {
-  padding: 1.5rem;
+  padding: 18px;
 }
 
 .chart-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 1.5rem;
-    margin-top: 2rem;
+    margin-top: 18px;
 }
 
 .chart-card {
@@ -123,5 +124,14 @@ const getSubjectDisplayName = (subjectKey: string | number): string => {
   height: 100%;
   width: 100%;
   padding: 10px;
+}
+
+@media (max-width: 560px) {
+  .tab-content {
+    padding: 12px;
+  }
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

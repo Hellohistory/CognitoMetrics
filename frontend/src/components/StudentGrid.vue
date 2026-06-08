@@ -5,16 +5,16 @@
       <h1>{{ classStore.gridTitle }}</h1>
       <div class="action-buttons">
         <template v-if="!isEditMode">
-            <el-button @click="handleExport" :disabled="!selectedClass || gridOptions.data?.length === 0">导出Excel</el-button>
-            <el-button type="primary" @click="toggleEditMode(true)" :disabled="!selectedClass">
+            <el-button :icon="Download" @click="handleExport" :disabled="!selectedClass || gridOptions.data?.length === 0">导出 Excel</el-button>
+            <el-button type="primary" :icon="EditPen" @click="toggleEditMode(true)" :disabled="!selectedClass">
                 进入编辑模式
             </el-button>
         </template>
         <template v-else>
-          <el-button @click="handleOpenPasteDialog" :disabled="!selectedClass || isSubmitting">粘贴名单</el-button>
-          <el-button type="primary" @click="handleUploadClick" :disabled="!selectedClass || isSubmitting">上传Excel</el-button>
+          <el-button :icon="DocumentCopy" @click="handleOpenPasteDialog" :disabled="!selectedClass || isSubmitting">粘贴名单</el-button>
+          <el-button :icon="Upload" type="primary" @click="handleUploadClick" :disabled="!selectedClass || isSubmitting">上传 Excel</el-button>
           <el-divider direction="vertical" />
-          <el-button type="success" @click="handleSaveChanges" :loading="isSubmitting" :disabled="isSubmitting">
+          <el-button type="success" :icon="Check" @click="handleSaveChanges" :loading="isSubmitting" :disabled="isSubmitting">
             {{ isSubmitting ? '保存中...' : '保存全部更改' }}
           </el-button>
           <el-button @click="toggleEditMode(false)" :disabled="isSubmitting">取消编辑</el-button>
@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue';
 import { ElButton, ElMessage, ElAlert, ElDialog, ElInput, ElDivider, ElMessageBox, ElSwitch } from 'element-plus';
+import { Check, DocumentCopy, Download, EditPen, Upload } from '@element-plus/icons-vue';
 import * as XLSX from 'xlsx';
 import type { VxeGridInstance, VxeGridProps, VxeGridEvents, VxeTableEvents } from 'vxe-table';
 
@@ -392,36 +393,48 @@ const handleSaveChanges = async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 1rem;
+  padding: 20px;
   box-sizing: border-box;
+  background: transparent;
 }
 .header-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
   flex-shrink: 0;
 }
 .header-bar h1 {
-    font-size: 1.5rem;
     margin: 0;
+    color: var(--app-text);
+    font-size: 24px;
+    line-height: 1.25;
 }
 .action-buttons {
     display: flex;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
     align-items: center;
 }
 .grid-wrapper {
   flex-grow: 1;
   min-height: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  overflow: hidden;
+  background: var(--app-surface);
 }
 .edit-mode-banner {
-  margin-bottom: 1rem;
+  margin-bottom: 14px;
+  border-color: #d8c89b;
+  background: #fff8e8;
 }
 .student-link {
-    color: #409EFF;
+    color: var(--app-primary);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 700;
 }
 .student-link:hover {
     text-decoration: underline;
@@ -429,19 +442,33 @@ const handleSaveChanges = async () => {
 .bulk-actions-bar {
     display: flex;
     align-items: center;
-    background-color: #ecf5ff;
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-    color: #409eff;
+    flex-wrap: wrap;
+    background-color: var(--app-primary-soft);
+    padding: 10px 12px;
+    border: 1px solid #cfe2df;
+    border-radius: 7px;
+    margin-bottom: 14px;
+    color: var(--app-primary);
     gap: 8px;
     flex-shrink: 0;
 }
 
 .filters-bar {
-    margin-bottom: 1rem;
+    margin-bottom: 14px;
     display: flex;
     align-items: center;
     flex-shrink: 0;
+}
+
+@media (max-width: 820px) {
+  .student-grid-container {
+    padding: 14px;
+  }
+  .header-bar {
+    flex-direction: column;
+  }
+  .action-buttons {
+    justify-content: flex-start;
+  }
 }
 </style>

@@ -1,34 +1,39 @@
 <template>
   <div class="class-navigation-panel" v-loading="classStore.isLoading || classStore.isSubmitting">
     <div class="aside-header">
-      <h3>班级与年级导航</h3>
-      <el-button
-        type="primary"
-        :icon="Plus"
-        size="small"
-        circle
-        plain
-        @click="gradeDialogVisible = true"
-        title="新建一个年级"
-      />
+      <div>
+        <h3>组织结构</h3>
+        <p>{{ gradeCount }} 个年级 · {{ classCount }} 个班级 · {{ studentCount }} 名学生</p>
+      </div>
+      <el-tooltip content="新建年级" placement="bottom">
+        <el-button
+          type="primary"
+          :icon="Plus"
+          size="small"
+          circle
+          @click="gradeDialogVisible = true"
+        />
+      </el-tooltip>
     </div>
 
     <el-scrollbar class="tree-scrollbar">
       <div v-if="!classStore.isLoading && classStore.classTree.length === 0" class="empty-state">
-        <p>系统中还没有任何年级信息。</p>
-        <p>请点击右上角“+”按钮添加。</p>
+        <el-icon><CollectionTag /></el-icon>
+        <strong>暂无组织结构</strong>
+        <span>先创建年级，再在年级下维护班级。</span>
+        <el-button type="primary" :icon="Plus" @click="gradeDialogVisible = true">新建年级</el-button>
       </div>
 
       <el-tree
         v-else
         ref="treeRef"
-        :data="classStore.classTree"
+        :data="treeData"
         :props="classStore.treeProps"
         @node-click="handleNodeClick"
         highlight-current
         :expand-on-click-node="false"
         class="class-tree"
-        node-key="id"
+        node-key="nodeKey"
         :current-node-key="currentNodeKeyForTree"
         :default-expand-all="true"
       >
@@ -73,7 +78,7 @@
 import { ref, onMounted, computed } from 'vue';
 import {
   ElButton, ElTree, ElIcon, ElScrollbar, vLoading, ElDropdown,
-  ElDropdownMenu, ElDropdownItem, ElMessage, ElMessageBox
+  ElDropdownMenu, ElDropdownItem, ElMessage, ElMessageBox, ElTooltip
 } from 'element-plus';
 import { Plus, CollectionTag, Avatar, MoreFilled, Edit, Delete } from '@element-plus/icons-vue';
 import { useClassStore } from '@/stores/classStore';
@@ -84,11 +89,33 @@ import ClassCreateDialog from './dialogs/ClassCreateDialog.vue';
 const classStore = useClassStore();
 const treeRef = ref<InstanceType<typeof ElTree>>();
 
-const currentNodeKeyForTree = computed(() => classStore.selectedNodeKey ?? undefined);
+const treeData = computed(() =>
+  classStore.classTree.map(grade => ({
+    ...grade,
+    nodeKey: `grade-${grade.id}`,
+    classes: grade.classes.map(cls => ({
+      ...cls,
+      nodeKey: `class-${cls.id}`,
+    })),
+  }))
+);
+const currentNodeKeyForTree = computed(() => {
+  if (classStore.selectedClass) return `class-${classStore.selectedClass.id}`;
+  if (classStore.selectedGrade) return `grade-${classStore.selectedGrade.id}`;
+  return undefined;
+});
+const gradeCount = computed(() => classStore.classTree.length);
+const classCount = computed(() => classStore.classTree.reduce((sum, grade) => sum + grade.classes.length, 0));
+const studentCount = computed(() =>
+  classStore.classTree.reduce((sum, grade) => sum + grade.classes.reduce((inner, cls) => inner + cls.student_count, 0), 0)
+);
 
-onMounted(() => {
+onMounted(async () => {
   if (classStore.classTree.length === 0) {
-    classStore.fetchClassTree();
+    await classStore.fetchClassTree();
+  }
+  if (!classStore.selectedNodeKey && classStore.classTree.length > 0) {
+    classStore.selectNode(classStore.classTree[0]);
   }
 });
 
@@ -195,13 +222,67 @@ const handleDelete = async (nodeData: IGradeNode | IClassNode) => {
 </script>
 
 <style scoped>
-.class-navigation-panel { height: 100%; display: flex; flex-direction: column; background-color: #fff; border-right: 1px solid #e4e7ed; }
-.aside-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid #e4e7ed; flex-shrink: 0; }
-.aside-header h3 { margin: 0; font-size: 16px; font-weight: 600; color: #303133; }
+.class-navigation-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--app-surface);
+}
+.aside-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  flex-shrink: 0;
+}
+.aside-header h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 700;
+}
+.aside-header p {
+  margin: 5px 0 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
 .tree-scrollbar { flex-grow: 1; }
-.empty-state { padding: 32px; text-align: center; color: #909399; font-size: 14px; line-height: 1.6; }
+.empty-state {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 42px 24px;
+  text-align: center;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.empty-state .el-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--app-primary);
+  background: var(--app-primary-soft);
+}
+.empty-state strong {
+  color: var(--app-text);
+  font-size: 16px;
+}
 .class-tree { padding: 8px 0; background-color: transparent; }
-.class-tree :deep(.el-tree-node__content) { height: 40px; }
+.class-tree :deep(.el-tree-node__content) {
+  height: 42px;
+  margin: 2px 8px;
+  border-radius: 7px;
+}
+.class-tree :deep(.el-tree-node.is-current > .el-tree-node__content) {
+  color: var(--app-primary-strong);
+  background: var(--app-primary-soft);
+  font-weight: 700;
+}
 .custom-tree-node {
   flex-grow: 1;
   display: flex;
@@ -214,6 +295,7 @@ const handleDelete = async (nodeData: IGradeNode | IClassNode) => {
 .more-button {
   visibility: hidden;
   border: none;
+  background: transparent;
 }
 .el-tree-node:hover .more-button,
 .more-button.is-active {

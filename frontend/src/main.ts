@@ -18,6 +18,7 @@ import 'element-plus/dist/index.css';
 
 import App from './App.vue';
 import router from './router';
+import './assets/main.css';
 
 import VxeUI from 'vxe-pc-ui';
 import 'vxe-pc-ui/lib/style.css';

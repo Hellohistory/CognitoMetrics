@@ -16,11 +16,22 @@ import AppHeader from '@/components/AppHeader.vue';
 #app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
+  background: transparent;
 }
 .main-content {
   flex-grow: 1;
-  padding: 2rem;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
+  padding: 24px;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+@media (max-width: 860px) {
+  .main-content {
+    padding: 14px;
+  }
 }
 </style>

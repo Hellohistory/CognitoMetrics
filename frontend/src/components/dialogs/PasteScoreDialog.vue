@@ -21,6 +21,7 @@
     width="600px"
     @open="onDialogOpen"
   >
+    <p class="dialog-intro">表头需包含姓名和当前考试科目名称，系统会按学生姓名匹配。</p>
     <el-form label-position="top">
       <el-form-item label="请从 Excel 中复制一块区域 (需包含表头，如：姓名、语文、数学等) 并粘贴到下方">
         <el-input
@@ -109,5 +110,14 @@ function handleSubmit(): void {
 </script>
 
 <style scoped>
+.dialog-intro {
+  margin: -4px 0 16px;
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
 
+:deep(.el-textarea__inner) {
+  font-family: Consolas, "Microsoft YaHei", monospace;
+  line-height: 1.7;
+}
 </style>
